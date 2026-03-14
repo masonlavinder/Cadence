@@ -8,48 +8,69 @@
 import SwiftUI
 import SwiftData
 
+/// Root navigation view with tab-based navigation
 struct ContentView: View {
-    @Environment(\.modelContext) private var modelContext
-    @Query private var items: [Item]
-
     var body: some View {
-        NavigationSplitView {
-            List {
-                ForEach(items) { item in
-                    NavigationLink {
-                        Text("Item at \(item.timestamp, format: Date.FormatStyle(date: .numeric, time: .standard))")
-                    } label: {
-                        Text(item.timestamp, format: Date.FormatStyle(date: .numeric, time: .standard))
-                    }
-                }
-                .onDelete(perform: deleteItems)
+        TabView {
+            // Workout Library Tab
+            NavigationStack {
+                LibraryView()
             }
-            .toolbar {
-                ToolbarItem(placement: .navigationBarTrailing) {
-                    EditButton()
-                }
-                ToolbarItem {
-                    Button(action: addItem) {
-                        Label("Add Item", systemImage: "plus")
-                    }
-                }
+            .tabItem {
+                Label("Library", systemImage: "list.bullet.rectangle.portrait")
             }
-        } detail: {
-            Text("Select an item")
+            
+            // Exercise Catalog Tab
+            NavigationStack {
+                ExerciseCatalogView()
+            }
+            .tabItem {
+                Label("Exercises", systemImage: "figure.strengthtraining.traditional")
+            }
+            
+            // History Tab
+            NavigationStack {
+                HistoryView()
+            }
+            .tabItem {
+                Label("History", systemImage: "clock.arrow.circlepath")
+            }
         }
     }
+}
 
-    private func addItem() {
-        withAnimation {
-            let newItem = Item(timestamp: Date())
-            modelContext.insert(newItem)
+// MARK: - History View (Placeholder)
+
+struct HistoryView: View {
+    @Environment(SessionStore.self) private var sessionStore
+    
+    var body: some View {
+        List {
+            ForEach(sessionStore.recentSessions(limit: 50)) { session in
+                VStack(alignment: .leading, spacing: 4) {
+                    Text(session.workoutName)
+                        .font(.headline)
+                    
+                    HStack {
+                        Text(session.formattedDuration)
+                        Text("•")
+                        Text("\(Int(session.completionPercentage * 100))% complete")
+                        Text("•")
+                        Text(session.startedAt, style: .date)
+                    }
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                }
+            }
         }
-    }
-
-    private func deleteItems(offsets: IndexSet) {
-        withAnimation {
-            for index in offsets {
-                modelContext.delete(items[index])
+        .navigationTitle("History")
+        .overlay {
+            if sessionStore.recentSessions().isEmpty {
+                ContentUnavailableView(
+                    "No Workouts Yet",
+                    systemImage: "clock.arrow.circlepath",
+                    description: Text("Your completed workouts will appear here")
+                )
             }
         }
     }
@@ -57,5 +78,11 @@ struct ContentView: View {
 
 #Preview {
     ContentView()
-        .modelContainer(for: Item.self, inMemory: true)
+        .modelContainer(for: [Exercise.self, Workout.self], inMemory: true)
+        .environment(ExerciseStore(modelContext: 
+            try! ModelContainer(for: Exercise.self, Workout.self).mainContext))
+        .environment(WorkoutStore(modelContext: 
+            try! ModelContainer(for: Exercise.self, Workout.self).mainContext))
+        .environment(SessionStore(modelContext: 
+            try! ModelContainer(for: Exercise.self, Workout.self).mainContext))
 }
