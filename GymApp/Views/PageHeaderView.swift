@@ -34,7 +34,7 @@ struct PageHeaderView<Filters: View>: View {
                     } label: {
                         Image(systemName: secondaryIcon)
                             .font(.title3)
-                            .foregroundStyle(.accentColor)
+                            .foregroundStyle(Color.accentColor)
                     }
                     .buttonStyle(.plain)
                 }
@@ -44,7 +44,7 @@ struct PageHeaderView<Filters: View>: View {
                 } label: {
                     Image(systemName: buttonIcon)
                         .font(.title2)
-                        .foregroundStyle(.accentColor)
+                        .foregroundStyle(Color.accentColor)
                 }
                 .buttonStyle(.plain)
             }
