@@ -72,7 +72,7 @@ struct AIGeneratorView: View {
             if modelAvailability != .checking {
                 Section("Configuration") {
                     Picker("Category", selection: $category) {
-                        ForEach(WorkoutCategory.allCases, id: \.self) { cat in
+                        ForEach(WorkoutCategory.allCases.filter { $0 != .custom }, id: \.self) { cat in
                             Text(cat.rawValue.capitalized)
                         }
                     }
@@ -84,8 +84,8 @@ struct AIGeneratorView: View {
                     }
                     
                     VStack(alignment: .leading) {
-                        Text("Duration: \(Int(duration)) minutes")
-                        Slider(value: $duration, in: 15...90, step: 15)
+                        Text("Duration: \(formattedDuration)")
+                        Slider(value: $duration, in: 5...240, step: 5)
                     }
                 }
                 
@@ -172,6 +172,19 @@ struct AIGeneratorView: View {
     
     // MARK: - AI Generation
     
+    private var formattedDuration: String {
+        let mins = Int(duration)
+        if mins < 60 {
+            return "\(mins) minutes"
+        }
+        let hours = mins / 60
+        let remainder = mins % 60
+        if remainder == 0 {
+            return "\(hours) hour\(hours == 1 ? "" : "s")"
+        }
+        return "\(hours) hour\(hours == 1 ? "" : "s") and \(remainder) minutes"
+    }
+
     private func checkModelAvailability() {
         #if canImport(FoundationModels)
         switch model.availability {
