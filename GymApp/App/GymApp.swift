@@ -46,6 +46,7 @@ struct GymApp: App {
                 .environment(exerciseStore)
                 .environment(workoutStore)
                 .environment(sessionStore)
+                .dsTheme(.default)
         }
         .modelContainer(modelContainer)
     }
