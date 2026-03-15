@@ -16,13 +16,23 @@ struct PageHeaderView<Filters: View>: View {
     var secondaryButtonIcon: String? = nil
     var onSecondaryButtonTap: (() -> Void)? = nil
 
+    @Environment(\.dsTheme) private var theme
+
     var body: some View {
         VStack(spacing: 12) {
             // Title + New button
             HStack {
-                Text(title)
-                    .font(.largeTitle)
-                    .fontWeight(.bold)
+                VStack(alignment: .leading, spacing: 2) {
+                    Text("cadence")
+                        .font(.system(size: 11, weight: .medium, design: .rounded))
+                        .tracking(4)
+                        .textCase(.uppercase)
+                        .foregroundStyle(theme.primary)
+                    Text(title)
+                        .font(.largeTitle)
+                        .fontWeight(.bold)
+                        .foregroundStyle(theme.textPrimary)
+                }
 
                 Spacer()
 
@@ -35,7 +45,7 @@ struct PageHeaderView<Filters: View>: View {
                             Image(systemName: secondaryIcon)
                                 .font(.title2)
                                 .frame(width: 44, height: 44)
-                                .foregroundStyle(Color.accentColor)
+                                .foregroundStyle(theme.primary)
                                 .contentShape(Rectangle())
                         }
                         .buttonStyle(.plain)
@@ -47,7 +57,7 @@ struct PageHeaderView<Filters: View>: View {
                         Image(systemName: buttonIcon)
                             .font(.title)
                             .frame(width: 44, height: 44)
-                            .foregroundStyle(Color.accentColor)
+                            .foregroundStyle(theme.primary)
                             .contentShape(Rectangle())
                     }
                     .buttonStyle(.plain)
@@ -57,20 +67,20 @@ struct PageHeaderView<Filters: View>: View {
             // Search bar
             HStack {
                 Image(systemName: "magnifyingglass")
-                    .foregroundStyle(.secondary)
+                    .foregroundStyle(theme.textSecondary)
                 TextField(searchPrompt, text: $searchText)
                 if !searchText.isEmpty {
                     Button {
                         searchText = ""
                     } label: {
                         Image(systemName: "xmark.circle.fill")
-                            .foregroundStyle(.secondary)
+                            .foregroundStyle(theme.textSecondary)
                     }
                     .buttonStyle(.plain)
                 }
             }
             .padding(10)
-            .background(Color(.systemGray6))
+            .background(.ultraThinMaterial)
             .clipShape(RoundedRectangle(cornerRadius: 10))
 
             // Filters

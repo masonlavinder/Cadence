@@ -41,6 +41,7 @@ final class WorkoutTimerEngine {
     private var entries: [WorkoutEntry] = []
     private var completedEntryCount: Int = 0
     private var skippedEntryCount: Int = 0
+    private var totalEstimatedWorkoutSeconds: Int = 0
 
     var currentEntry: WorkoutEntry? {
         guard currentEntryIndex < entries.count else { return nil }
@@ -51,10 +52,16 @@ final class WorkoutTimerEngine {
         currentEntry?.exerciseName ?? "—"
     }
 
+    var nextEntry: WorkoutEntry? {
+        let nextIndex = currentEntryIndex + 1
+        guard nextIndex < entries.count else { return nil }
+        return entries[nextIndex]
+    }
+
+    /// Time-based completion: elapsed / estimated total.
     var completionPercentage: Double {
-        let total = entries.count + deferredQueue.count
-        guard total > 0 else { return 0 }
-        return Double(completedEntryCount) / Double(total)
+        guard totalEstimatedWorkoutSeconds > 0 else { return 0 }
+        return min(1.0, Double(totalElapsedSeconds) / Double(totalEstimatedWorkoutSeconds))
     }
 
     var totalEntryCount: Int {
@@ -79,6 +86,7 @@ final class WorkoutTimerEngine {
         completedEntryCount = 0
         skippedEntryCount = 0
         deferredQueue = []
+        totalEstimatedWorkoutSeconds = entries.reduce(0) { $0 + $1.totalEstimatedSeconds }
 
         guard !entries.isEmpty else {
             state = .finishing

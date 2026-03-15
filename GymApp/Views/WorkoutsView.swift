@@ -5,6 +5,7 @@ import SwiftData
 
 struct WorkoutsView: View {
     @Environment(WorkoutStore.self) private var workoutStore
+    @Environment(\.dsTheme) private var theme
 
     @State private var selectedCategory: WorkoutCategory? = nil
     @State private var showFavoritesOnly = false
@@ -68,7 +69,7 @@ struct WorkoutsView: View {
                             }
                             .padding(.horizontal, 16)
                             .padding(.vertical, 6)
-                            .background(Color(.secondarySystemGroupedBackground))
+                            .background(theme.surface)
                             .clipShape(RoundedRectangle(cornerRadius: 12))
                             .padding(.horizontal, 16)
                             .contextMenu {
@@ -99,7 +100,7 @@ struct WorkoutsView: View {
                 }
             }
         }
-        .background(Color(.systemGroupedBackground))
+        .background(theme.background)
         .navigationBarHidden(true)
         .sheet(isPresented: $showingNewWorkout) {
             NavigationStack {
@@ -159,6 +160,7 @@ struct WorkoutCardView: View {
     let workout: Workout
     let onStart: () -> Void
     @Environment(WorkoutStore.self) private var workoutStore
+    @Environment(\.dsTheme) private var theme
 
     var body: some View {
         VStack(alignment: .leading, spacing: 10) {
@@ -166,6 +168,7 @@ struct WorkoutCardView: View {
             HStack {
                 Text(workout.name)
                     .font(.headline)
+                    .foregroundStyle(theme.textPrimary)
 
                 Spacer()
 
@@ -173,7 +176,7 @@ struct WorkoutCardView: View {
                     workoutStore.toggleFavorite(workout)
                 } label: {
                     Image(systemName: workout.isFavorite ? "star.fill" : "star")
-                        .foregroundStyle(workout.isFavorite ? .orange : .secondary.opacity(0.5))
+                        .foregroundStyle(workout.isFavorite ? theme.warning : theme.textTertiary)
                         .font(.callout)
                 }
                 .buttonStyle(.plain)
@@ -181,18 +184,19 @@ struct WorkoutCardView: View {
 
             // Metadata
             HStack(spacing: 12) {
+                let catColor = DSColors.categoryColor(workout.category)
                 Text(workout.category.rawValue.capitalized)
                     .font(.caption2)
                     .fontWeight(.semibold)
                     .padding(.horizontal, 8)
                     .padding(.vertical, 4)
-                    .background(categoryColor(workout.category).opacity(0.2))
-                    .foregroundStyle(categoryColor(workout.category))
+                    .background(catColor.opacity(0.2))
+                    .foregroundStyle(catColor)
                     .clipShape(Capsule())
 
                 Text(workout.difficulty.rawValue.capitalized)
                     .font(.caption2)
-                    .foregroundStyle(.secondary)
+                    .foregroundStyle(theme.textSecondary)
 
                 HStack(spacing: 2) {
                     Image(systemName: "clock")
@@ -200,7 +204,7 @@ struct WorkoutCardView: View {
                     Text("\(workout.estimatedDurationMinutes) min")
                         .font(.caption2)
                 }
-                .foregroundStyle(.secondary)
+                .foregroundStyle(theme.textSecondary)
 
                 if !workout.entries.isEmpty {
                     HStack(spacing: 2) {
@@ -209,7 +213,7 @@ struct WorkoutCardView: View {
                         Text("\(workout.entries.count)")
                             .font(.caption2)
                     }
-                    .foregroundStyle(.secondary)
+                    .foregroundStyle(theme.textSecondary)
                 }
 
                 Spacer()
@@ -224,7 +228,8 @@ struct WorkoutCardView: View {
                                 .font(.caption2)
                                 .padding(.horizontal, 6)
                                 .padding(.vertical, 2)
-                                .background(Color.secondary.opacity(0.1))
+                                .background(theme.secondary.opacity(0.15))
+                                .foregroundStyle(theme.textSecondary)
                                 .clipShape(Capsule())
                         }
                     }
@@ -241,8 +246,8 @@ struct WorkoutCardView: View {
                         .fontWeight(.semibold)
                         .frame(maxWidth: .infinity)
                         .padding(.vertical, 8)
-                        .background(Color.accentColor)
-                        .foregroundStyle(.white)
+                        .background(theme.primary)
+                        .foregroundStyle(theme.textOnPrimary)
                         .clipShape(RoundedRectangle(cornerRadius: 8))
                 }
                 .buttonStyle(.plain)
@@ -255,27 +260,14 @@ struct WorkoutCardView: View {
                         .fontWeight(.medium)
                         .frame(maxWidth: .infinity)
                         .padding(.vertical, 8)
-                        .background(Color.secondary.opacity(0.15))
-                        .foregroundStyle(.primary)
+                        .background(theme.secondary.opacity(0.15))
+                        .foregroundStyle(theme.textPrimary)
                         .clipShape(RoundedRectangle(cornerRadius: 8))
                 }
                 .buttonStyle(.plain)
             }
         }
         .padding(.vertical, 6)
-    }
-
-    private func categoryColor(_ category: WorkoutCategory) -> Color {
-        switch category {
-        case .strength: return .blue
-        case .hiit: return .red
-        case .cardio: return .orange
-        case .yoga: return .purple
-        case .flexibility: return .green
-        case .calisthenics: return .cyan
-        case .crossfit: return .pink
-        case .custom: return .gray
-        }
     }
 }
 
@@ -286,6 +278,7 @@ struct FilterChip: View {
     let isSelected: Bool
     var icon: String? = nil
     let action: () -> Void
+    @Environment(\.dsTheme) private var theme
 
     var body: some View {
         Button(action: action) {
@@ -300,8 +293,8 @@ struct FilterChip: View {
             .fontWeight(isSelected ? .semibold : .regular)
             .padding(.horizontal, 12)
             .padding(.vertical, 8)
-            .background(isSelected ? Color.accentColor : Color.secondary.opacity(0.1))
-            .foregroundStyle(isSelected ? .white : .primary)
+            .background(isSelected ? theme.primary : theme.secondary.opacity(0.15))
+            .foregroundStyle(isSelected ? theme.textOnPrimary : theme.textPrimary)
             .clipShape(Capsule())
         }
         .buttonStyle(.plain)

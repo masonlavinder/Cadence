@@ -4,82 +4,116 @@ import SwiftUI
 
 struct ActiveWorkoutView: View {
     let workout: Workout
-    
+
     @Environment(SessionStore.self) private var sessionStore
     @Environment(\.dismiss) private var dismiss
-    
+    @Environment(\.dsTheme) private var theme
+
     @State private var engine = WorkoutTimerEngine()
     @State private var audioBridge: WorkoutAudioBridge?
     @State private var session: WorkoutSession?
-    
+
     @State private var showingEndConfirmation = false
     @State private var showingDeferredQueue = false
-    
+
+    // Prep countdown
+    @State private var prepCountdown: Int = 10
+    @State private var isPreparing = true
+    @State private var prepTimer: Timer?
+
+    /// The background color for the entire screen, driven by phase.
+    private var screenBackground: Color {
+        if isPreparing {
+            return DSColors.background
+        }
+        if engine.state == .finishing {
+            return DSColors.background
+        }
+        switch engine.phase {
+        case .exercise, .waitingForUser:
+            return theme.primary
+        case .restBetweenSets, .restAfterBlock:
+            return DSColors.background
+        }
+    }
+
+    /// Text/icon color that contrasts with the current background.
+    private var screenForeground: Color {
+        if isPreparing || engine.state == .finishing {
+            return theme.textPrimary
+        }
+        switch engine.phase {
+        case .exercise, .waitingForUser:
+            return theme.textOnPrimary
+        case .restBetweenSets, .restAfterBlock:
+            return theme.textPrimary
+        }
+    }
+
+    /// Secondary text color that contrasts with the current background.
+    private var screenForegroundSecondary: Color {
+        if isPreparing || engine.state == .finishing {
+            return theme.textSecondary
+        }
+        switch engine.phase {
+        case .exercise, .waitingForUser:
+            return theme.textOnPrimary.opacity(0.6)
+        case .restBetweenSets, .restAfterBlock:
+            return theme.textSecondary
+        }
+    }
+
     var body: some View {
         ZStack {
-            // Background gradient
-            LinearGradient(
-                colors: [Color.accentColor.opacity(0.1), Color.clear],
-                startPoint: .top,
-                endPoint: .bottom
-            )
-            .ignoresSafeArea()
-            
+            // Full-screen background
+            screenBackground
+                .ignoresSafeArea()
+                .animation(.easeInOut(duration: 0.5), value: engine.phase)
+                .animation(.easeInOut(duration: 0.5), value: isPreparing)
+                .animation(.easeInOut(duration: 0.5), value: engine.state)
+
             VStack(spacing: 0) {
-                // Top Bar
-                topBar
-                
-                Spacer()
-                
-                // Main Content
-                if engine.state == .finishing {
+                if isPreparing {
+                    // Close button for prep
+                    HStack {
+                        Button {
+                            cancelPrep()
+                            dismiss()
+                        } label: {
+                            Image(systemName: "xmark")
+                                .font(.body)
+                                .fontWeight(.medium)
+                                .foregroundStyle(theme.textSecondary)
+                                .frame(width: 32, height: 32)
+                                .contentShape(Rectangle())
+                        }
+                        .padding(.leading, 16)
+                        .padding(.top, 8)
+                        Spacer()
+                    }
+                    Spacer()
+                    prepScreen
+                    Spacer()
+                } else if engine.state == .finishing {
+                    // Completion screen
+                    Spacer()
                     WorkoutCompleteView(
                         session: session,
-                        onDismiss: {
-                            dismiss()
-                        }
+                        onDismiss: { dismiss() }
                     )
+                    Spacer()
                 } else {
+                    // Active workout
+                    topBar
+                    Spacer()
                     mainContent
-                }
-                
-                Spacer()
-                
-                // Control Panel
-                if engine.state != .finishing {
-                    BigButtonPanel(engine: engine)
+                    Spacer()
+                    BigButtonPanel(engine: engine, isExercisePhase: engine.phase == .exercise || engine.phase == .waitingForUser)
                         .padding()
                 }
             }
         }
-        .navigationBarBackButtonHidden(true)
-        .toolbar {
-            ToolbarItem(placement: .navigationBarLeading) {
-                Button {
-                    showingEndConfirmation = true
-                } label: {
-                    Image(systemName: "xmark")
-                        .font(.title3)
-                        .foregroundStyle(.primary)
-                }
-            }
-            
-            ToolbarItem(placement: .navigationBarTrailing) {
-                if !engine.deferredQueue.isEmpty {
-                    Button {
-                        showingDeferredQueue = true
-                    } label: {
-                        Label("\(engine.deferredQueue.count) deferred", systemImage: "clock.badge")
-                            .font(.caption)
-                            .padding(.horizontal, 12)
-                            .padding(.vertical, 6)
-                            .background(Color.orange.opacity(0.2))
-                            .foregroundStyle(.orange)
-                            .clipShape(Capsule())
-                    }
-                }
-            }
-        }
+        .navigationBarHidden(true)
         .confirmationDialog(
             "End Workout?",
             isPresented: $showingEndConfirmation,
@@ -92,7 +126,6 @@ struct ActiveWorkoutView: View {
                 }
                 dismiss()
             }
-            
             Button("Cancel", role: .cancel) {}
         } message: {
             Text("You've completed \(Int(engine.completionPercentage * 100))% of the workout.")
@@ -101,154 +134,354 @@ struct ActiveWorkoutView: View {
             DeferredQueueSheet(engine: engine)
         }
         .onAppear {
-            setupWorkout()
+            startPrep()
         }
         .onDisappear {
+            cancelPrep()
             audioBridge?.deactivate()
             UIApplication.shared.isIdleTimerDisabled = false
         }
     }
-    
-    // MARK: - Top Bar
-    
-    private var topBar: some View {
-        VStack(spacing: 8) {
+
+    // MARK: - Prep Screen
+
+    private var prepScreen: some View {
+        VStack(spacing: 40) {
+            Text("cadence")
+                .font(.system(size: 16, weight: .medium, design: .rounded))
+                .tracking(6)
+                .textCase(.uppercase)
+                .foregroundStyle(theme.primary)
+
             Text(workout.name)
-                .font(.headline)
-                .lineLimit(1)
-            
-            HStack(spacing: 20) {
-                // Elapsed Time
+                .font(.system(size: 28, weight: .bold, design: .rounded))
+                .foregroundStyle(theme.textPrimary)
+                .multilineTextAlignment(.center)
+                .padding(.horizontal, 40)
+
+            ZStack {
+                Circle()
+                    .stroke(theme.secondary.opacity(0.2), lineWidth: 8)
+                    .frame(width: 200, height: 200)
+
+                Circle()
+                    .trim(from: 0, to: Double(10 - prepCountdown) / 10.0)
+                    .stroke(theme.primary, style: StrokeStyle(lineWidth: 8, lineCap: .round))
+                    .frame(width: 200, height: 200)
+                    .rotationEffect(.degrees(-90))
+                    .animation(.linear(duration: 1.0), value: prepCountdown)
+
+                Text("\(prepCountdown)")
+                    .font(.system(size: 80, weight: .bold, design: .rounded))
+                    .monospacedDigit()
+                    .foregroundStyle(theme.textPrimary)
+                    .contentTransition(.numericText())
+            }
+
+            // First exercise hint
+            if let first = workout.entries.sorted(by: { $0.orderIndex < $1.orderIndex }).first {
+                VStack(spacing: 4) {
+                    Text("FIRST UP")
+                        .font(.system(size: 11, weight: .semibold, design: .rounded))
+                        .tracking(2)
+                        .foregroundStyle(theme.textSecondary)
+                    Text(first.exerciseName)
+                        .font(.title3)
+                        .fontWeight(.semibold)
+                        .foregroundStyle(theme.textPrimary)
+                    Text(first.displayConfiguration)
+                        .font(.subheadline)
+                        .foregroundStyle(theme.textSecondary)
+                }
+            }
+
+            // Skip prep button
+            Button {
+                cancelPrep()
+                beginWorkout()
+            } label: {
+                Text("Skip")
+                    .font(.subheadline)
+                    .fontWeight(.medium)
+                    .foregroundStyle(theme.textSecondary)
+                    .padding(.horizontal, 24)
+                    .padding(.vertical, 10)
+                    .background(theme.secondary.opacity(0.15))
+                    .clipShape(Capsule())
+            }
+        }
+    }
+
+    // MARK: - Top Bar
+
+    private var topBar: some View {
+        VStack(spacing: 6) {
+            // Top row: close button, branding + name, deferred badge
+            HStack {
+                Button {
+                    showingEndConfirmation = true
+                } label: {
+                    Image(systemName: "xmark")
+                        .font(.body)
+                        .fontWeight(.medium)
+                        .foregroundStyle(screenForegroundSecondary)
+                        .frame(width: 32, height: 32)
+                        .contentShape(Rectangle())
+                }
+
+                Spacer()
+
+                VStack(spacing: 2) {
+                    Text("cadence")
+                        .font(.system(size: 10, weight: .medium, design: .rounded))
+                        .tracking(3)
+                        .textCase(.uppercase)
+                        .foregroundStyle(screenForegroundSecondary)
+                    Text(workout.name)
+                        .font(.subheadline)
+                        .fontWeight(.semibold)
+                        .foregroundStyle(screenForeground)
+                        .lineLimit(1)
+                }
+
+                Spacer()
+
+                if !engine.deferredQueue.isEmpty {
+                    Button {
+                        showingDeferredQueue = true
+                    } label: {
+                        Text("\(engine.deferredQueue.count)")
+                            .font(.caption2)
+                            .fontWeight(.bold)
+                            .foregroundStyle(theme.warning)
+                            .frame(width: 32, height: 32)
+                            .background(theme.warning.opacity(0.15))
+                            .clipShape(Circle())
+                    }
+                } else {
+                    Color.clear.frame(width: 32, height: 32)
+                }
+            }
+            .padding(.horizontal, 16)
+
+            // Stats row
+            HStack(spacing: 16) {
                 HStack(spacing: 4) {
                     Image(systemName: "timer")
-                        .font(.caption)
+                        .font(.caption2)
                     Text(formatTime(engine.totalElapsedSeconds))
-                        .font(.caption)
+                        .font(.caption2)
                         .monospacedDigit()
                 }
-                
-                // Progress
+
                 HStack(spacing: 4) {
                     Image(systemName: "chart.bar.fill")
-                        .font(.caption)
+                        .font(.caption2)
                     Text("\(Int(engine.completionPercentage * 100))%")
-                        .font(.caption)
+                        .font(.caption2)
                         .monospacedDigit()
                 }
-                
-                // Exercise Counter
+
                 HStack(spacing: 4) {
                     Image(systemName: "figure.strengthtraining.traditional")
-                        .font(.caption)
+                        .font(.caption2)
                     Text("\(engine.currentEntryIndex + 1)/\(workout.entries.count)")
-                        .font(.caption)
+                        .font(.caption2)
                         .monospacedDigit()
                 }
             }
-            .foregroundStyle(.secondary)
+            .foregroundStyle(screenForegroundSecondary)
         }
-        .padding()
-        .background(.ultraThinMaterial)
+        .padding(.top, 4)
+        .padding(.bottom, 8)
     }
-    
+
     // MARK: - Main Content
-    
+
     private var mainContent: some View {
         VStack(spacing: 30) {
-            // Exercise Name
+            // Exercise name — always shows current exercise
             Text(engine.currentExerciseName)
                 .font(.system(size: 34, weight: .bold, design: .rounded))
+                .foregroundStyle(screenForeground)
                 .multilineTextAlignment(.center)
                 .padding(.horizontal)
-            
-            // Set Counter
-            if let entry = engine.currentEntry {
-                Text("Set \(engine.currentSet) of \(entry.sets)")
-                    .font(.title3)
-                    .foregroundStyle(.secondary)
-            }
-            
-            // Timer Display
+
+            // Set & reps info — adapts based on phase
+            exerciseInfo
+
             timerDisplay
-            
-            // Phase Indicator
-            phaseIndicator
         }
     }
-    
+
+    private var exerciseInfo: some View {
+        Group {
+            if let entry = engine.currentEntry {
+                switch engine.phase {
+                case .exercise:
+                    // Current set + reps
+                    VStack(spacing: 6) {
+                        Text("Set \(engine.currentSet) of \(entry.sets)")
+                            .font(.title3)
+                            .foregroundStyle(screenForegroundSecondary)
+                        if let reps = entry.targetReps, entry.blockType == .repBased {
+                            Text("\(reps) reps")
+                                .font(.title2)
+                                .fontWeight(.semibold)
+                                .foregroundStyle(screenForeground)
+                        }
+                    }
+
+                case .restBetweenSets:
+                    // Next set preview inline
+                    HStack(spacing: 8) {
+                        Text("Set \(engine.currentSet + 1) of \(entry.sets)")
+                            .font(.title3)
+                            .foregroundStyle(screenForeground)
+                        if let reps = entry.targetReps, entry.blockType == .repBased {
+                            Text("· \(reps) reps")
+                                .font(.title3)
+                                .foregroundStyle(screenForegroundSecondary)
+                        }
+                        Text("Next up")
+                            .font(.caption)
+                            .fontWeight(.semibold)
+                            .textCase(.uppercase)
+                            .tracking(1)
+                            .padding(.horizontal, 8)
+                            .padding(.vertical, 3)
+                            .background(screenForeground.opacity(0.1))
+                            .foregroundStyle(screenForegroundSecondary)
+                            .clipShape(Capsule())
+                    }
+
+                case .restAfterBlock:
+                    // Next exercise preview inline
+                    if let next = engine.nextEntry {
+                        VStack(spacing: 6) {
+                            HStack(spacing: 8) {
+                                Text(next.exerciseName)
+                                    .font(.title3)
+                                    .fontWeight(.semibold)
+                                    .foregroundStyle(screenForeground)
+                                Text("Next up")
+                                    .font(.caption)
+                                    .fontWeight(.semibold)
+                                    .textCase(.uppercase)
+                                    .tracking(1)
+                                    .padding(.horizontal, 8)
+                                    .padding(.vertical, 3)
+                                    .background(screenForeground.opacity(0.1))
+                                    .foregroundStyle(screenForegroundSecondary)
+                                    .clipShape(Capsule())
+                            }
+                            Text(next.displayConfiguration)
+                                .font(.subheadline)
+                                .foregroundStyle(screenForegroundSecondary)
+                        }
+                    } else {
+                        Text("Last exercise!")
+                            .font(.title3)
+                            .foregroundStyle(screenForegroundSecondary)
+                    }
+
+                case .waitingForUser:
+                    VStack(spacing: 6) {
+                        Text("Set \(engine.currentSet) of \(entry.sets)")
+                            .font(.title3)
+                            .foregroundStyle(screenForegroundSecondary)
+                        if let reps = entry.targetReps, entry.blockType == .repBased {
+                            Text("\(reps) reps")
+                                .font(.title2)
+                                .fontWeight(.semibold)
+                                .foregroundStyle(screenForeground)
+                        }
+                    }
+                }
+            }
+        }
+        .frame(minHeight: 50)
+    }
+
     private var timerDisplay: some View {
         ZStack {
-            // Background Circle
             Circle()
-                .stroke(Color.secondary.opacity(0.2), lineWidth: 12)
+                .stroke(screenForegroundSecondary.opacity(0.2), lineWidth: 12)
                 .frame(width: 250, height: 250)
-            
-            // Progress Circle
+
             Circle()
                 .trim(from: 0, to: timerProgress)
                 .stroke(
-                    timerColor,
+                    timerRingColor,
                     style: StrokeStyle(lineWidth: 12, lineCap: .round)
                 )
                 .frame(width: 250, height: 250)
                 .rotationEffect(.degrees(-90))
                 .animation(.linear(duration: 1.0), value: timerProgress)
-            
-            // Time Text
+
             VStack(spacing: 4) {
                 Text("\(engine.secondsRemaining)")
                     .font(.system(size: 80, weight: .bold, design: .rounded))
                     .monospacedDigit()
+                    .foregroundStyle(screenForeground)
                     .contentTransition(.numericText())
-                
-                Text("seconds")
+
+                Text(phaseLabel)
                     .font(.caption)
-                    .foregroundStyle(.secondary)
+                    .fontWeight(.medium)
+                    .textCase(.uppercase)
+                    .tracking(1)
+                    .foregroundStyle(screenForegroundSecondary)
             }
         }
     }
-    
-    private var phaseIndicator: some View {
-        HStack(spacing: 8) {
-            Image(systemName: phaseIcon)
-                .font(.title3)
-            Text(phaseText)
-                .font(.headline)
+
+    // MARK: - Prep Management
+
+    private func startPrep() {
+        isPreparing = true
+        prepCountdown = 10
+        UIApplication.shared.isIdleTimerDisabled = true
+
+        prepTimer = Timer.scheduledTimer(withTimeInterval: 1.0, repeats: true) { _ in
+            Task { @MainActor in
+                if prepCountdown > 1 {
+                    withAnimation { prepCountdown -= 1 }
+                } else {
+                    cancelPrep()
+                    beginWorkout()
+                }
+            }
         }
-        .foregroundStyle(timerColor)
-        .padding(.horizontal, 20)
-        .padding(.vertical, 12)
-        .background(timerColor.opacity(0.1))
-        .clipShape(Capsule())
     }
-    
-    // MARK: - Helpers
-    
-    private func setupWorkout() {
-        // Create session
+
+    private func cancelPrep() {
+        prepTimer?.invalidate()
+        prepTimer = nil
+    }
+
+    private func beginWorkout() {
+        withAnimation(.easeInOut(duration: 0.5)) {
+            isPreparing = false
+        }
+
         session = sessionStore.startSession(for: workout)
-        
-        // Setup audio
         audioBridge = WorkoutAudioBridge(engine: engine)
         audioBridge?.activate()
-        
-        // Prevent screen lock
-        UIApplication.shared.isIdleTimerDisabled = true
-        
-        // Start workout
         engine.start(workout: workout)
-        
-        // Setup completion callback
-        engine.onWorkoutComplete = { completedSession in
+
+        engine.onWorkoutComplete = { _ in
             if let session = session {
                 sessionStore.completeSession(session)
             }
         }
     }
-    
+
+    // MARK: - Helpers
+
     private var timerProgress: Double {
         guard let entry = engine.currentEntry else { return 0 }
-        
+
         let total: Double
         switch engine.phase {
         case .exercise:
@@ -260,46 +493,37 @@ struct ActiveWorkoutView: View {
         case .waitingForUser:
             return 1.0
         }
-        
+
         let remaining = Double(engine.secondsRemaining)
         return 1.0 - (remaining / total)
     }
-    
-    private var timerColor: Color {
+
+    /// Color for the timer ring only — distinct from the background.
+    private var timerRingColor: Color {
         switch engine.phase {
         case .exercise:
-            return engine.secondsRemaining <= 3 ? .red : .blue
+            // On peach background, ring is dark; last 3 seconds = red
+            return engine.secondsRemaining <= 3 ? theme.destructive : screenForeground
         case .restBetweenSets, .restAfterBlock:
-            return .green
+            return theme.primary
         case .waitingForUser:
-            return .orange
+            return screenForeground
         }
     }
-    
-    private var phaseIcon: String {
-        switch engine.phase {
-        case .exercise:
-            return "figure.strengthtraining.traditional"
-        case .restBetweenSets, .restAfterBlock:
-            return "pause.circle.fill"
-        case .waitingForUser:
-            return "hand.raised.fill"
-        }
-    }
-    
-    private var phaseText: String {
+
+    private var phaseLabel: String {
         switch engine.phase {
         case .exercise:
             return "Exercise"
         case .restBetweenSets:
-            return "Rest Between Sets"
+            return "Rest"
         case .restAfterBlock:
-            return "Rest Before Next Exercise"
+            return "Rest"
         case .waitingForUser:
-            return "Tap Done When Complete"
+            return "Tap Done"
         }
     }
-    
+
     private func formatTime(_ seconds: Int) -> String {
         let mins = seconds / 60
         let secs = seconds % 60
@@ -311,10 +535,25 @@ struct ActiveWorkoutView: View {
 
 struct BigButtonPanel: View {
     @Bindable var engine: WorkoutTimerEngine
-    
+    var isExercisePhase: Bool
+    @Environment(\.dsTheme) private var theme
+
+    /// On peach background, buttons use dark fills; on dark background, buttons use peach.
+    private var primaryButtonBg: Color {
+        isExercisePhase ? theme.textOnPrimary : theme.primary
+    }
+    private var primaryButtonFg: Color {
+        isExercisePhase ? theme.primary : theme.textOnPrimary
+    }
+    private var secondaryButtonBg: Color {
+        isExercisePhase ? theme.textOnPrimary.opacity(0.2) : theme.secondary.opacity(0.2)
+    }
+    private var secondaryButtonFg: Color {
+        isExercisePhase ? theme.textOnPrimary : theme.textPrimary
+    }
+
     var body: some View {
         VStack(spacing: 12) {
-            // Primary Controls
             HStack(spacing: 12) {
                 // Pause/Resume
                 Button {
@@ -327,12 +566,12 @@ struct BigButtonPanel: View {
                     .font(.headline)
                     .frame(maxWidth: .infinity)
                     .padding()
-                    .background(Color.accentColor)
-                    .foregroundStyle(.white)
+                    .background(primaryButtonBg)
+                    .foregroundStyle(primaryButtonFg)
                     .clipShape(RoundedRectangle(cornerRadius: 12))
                 }
-                
-                // Done (for untimed exercises) or +30s Rest
+
+                // Second primary button — always present for stable layout
                 if engine.state == .waitingForUser {
                     Button {
                         engine.markCurrentDone()
@@ -341,8 +580,8 @@ struct BigButtonPanel: View {
                             .font(.headline)
                             .frame(maxWidth: .infinity)
                             .padding()
-                            .background(Color.green)
-                            .foregroundStyle(.white)
+                            .background(primaryButtonBg)
+                            .foregroundStyle(primaryButtonFg)
                             .clipShape(RoundedRectangle(cornerRadius: 12))
                     }
                 } else if engine.phase == .restBetweenSets || engine.phase == .restAfterBlock {
@@ -353,14 +592,26 @@ struct BigButtonPanel: View {
                             .font(.headline)
                             .frame(maxWidth: .infinity)
                             .padding()
-                            .background(Color.orange)
-                            .foregroundStyle(.white)
+                            .background(theme.warning)
+                            .foregroundStyle(theme.textOnPrimary)
+                            .clipShape(RoundedRectangle(cornerRadius: 12))
+                    }
+                } else {
+                    // Exercise phase — skip as second primary
+                    Button {
+                        engine.skipExercise()
+                    } label: {
+                        Label("Skip", systemImage: "forward.fill")
+                            .font(.headline)
+                            .frame(maxWidth: .infinity)
+                            .padding()
+                            .background(secondaryButtonBg)
+                            .foregroundStyle(secondaryButtonFg)
                             .clipShape(RoundedRectangle(cornerRadius: 12))
                     }
                 }
             }
-            
-            // Secondary Controls
+
             HStack(spacing: 12) {
                 Button {
                     engine.skipExercise()
@@ -369,11 +620,11 @@ struct BigButtonPanel: View {
                         .font(.subheadline)
                         .frame(maxWidth: .infinity)
                         .padding(.vertical, 12)
-                        .background(Color.secondary.opacity(0.2))
-                        .foregroundStyle(.primary)
+                        .background(secondaryButtonBg)
+                        .foregroundStyle(secondaryButtonFg)
                         .clipShape(RoundedRectangle(cornerRadius: 10))
                 }
-                
+
                 Button {
                     engine.deferExercise()
                 } label: {
@@ -381,8 +632,8 @@ struct BigButtonPanel: View {
                         .font(.subheadline)
                         .frame(maxWidth: .infinity)
                         .padding(.vertical, 12)
-                        .background(Color.secondary.opacity(0.2))
-                        .foregroundStyle(.primary)
+                        .background(secondaryButtonBg)
+                        .foregroundStyle(secondaryButtonFg)
                         .clipShape(RoundedRectangle(cornerRadius: 10))
                 }
             }
@@ -395,7 +646,8 @@ struct BigButtonPanel: View {
 struct DeferredQueueSheet: View {
     @Bindable var engine: WorkoutTimerEngine
     @Environment(\.dismiss) private var dismiss
-    
+    @Environment(\.dsTheme) private var theme
+
     var body: some View {
         NavigationStack {
             List {
@@ -404,14 +656,14 @@ struct DeferredQueueSheet: View {
                         VStack(alignment: .leading, spacing: 4) {
                             Text(entry.exerciseName)
                                 .font(.headline)
-                            
+
                             Text("\(entry.sets) × \(entry.displayConfiguration)")
                                 .font(.caption)
-                                .foregroundStyle(.secondary)
+                                .foregroundStyle(theme.textSecondary)
                         }
-                        
+
                         Spacer()
-                        
+
                         Button {
                             engine.insertDeferred(at: index)
                             if engine.deferredQueue.isEmpty {
@@ -423,8 +675,8 @@ struct DeferredQueueSheet: View {
                                 .fontWeight(.semibold)
                                 .padding(.horizontal, 12)
                                 .padding(.vertical, 6)
-                                .background(Color.accentColor)
-                                .foregroundStyle(.white)
+                                .background(theme.primary)
+                                .foregroundStyle(theme.textOnPrimary)
                                 .clipShape(Capsule())
                         }
                     }
@@ -457,16 +709,24 @@ struct DeferredQueueSheet: View {
 struct WorkoutCompleteView: View {
     let session: WorkoutSession?
     let onDismiss: () -> Void
-    
+    @Environment(\.dsTheme) private var theme
+
     var body: some View {
         VStack(spacing: 30) {
+            Text("cadence")
+                .font(.system(size: 14, weight: .medium, design: .rounded))
+                .tracking(5)
+                .textCase(.uppercase)
+                .foregroundStyle(theme.primary)
+
             Image(systemName: "checkmark.circle.fill")
                 .font(.system(size: 80))
-                .foregroundStyle(.green)
-            
+                .foregroundStyle(theme.success)
+
             Text("Workout Complete!")
                 .font(.system(size: 36, weight: .bold))
-            
+                .foregroundStyle(theme.textPrimary)
+
             if let session = session {
                 VStack(spacing: 12) {
                     StatRow(
@@ -474,19 +734,16 @@ struct WorkoutCompleteView: View {
                         label: "Duration",
                         value: session.formattedDuration
                     )
-                    
                     StatRow(
                         icon: "figure.strengthtraining.traditional",
                         label: "Exercises",
                         value: "\(session.exercisesCompleted) completed"
                     )
-                    
                     StatRow(
                         icon: "chart.bar.fill",
                         label: "Completion",
                         value: "\(Int(session.completionPercentage * 100))%"
                     )
-                    
                     if session.exercisesSkipped > 0 {
                         StatRow(
                             icon: "forward.fill",
@@ -496,10 +753,10 @@ struct WorkoutCompleteView: View {
                     }
                 }
                 .padding()
-                .background(Color.secondary.opacity(0.1))
+                .background(.ultraThinMaterial)
                 .clipShape(RoundedRectangle(cornerRadius: 12))
             }
-            
+
             Button {
                 onDismiss()
             } label: {
@@ -507,8 +764,8 @@ struct WorkoutCompleteView: View {
                     .font(.headline)
                     .frame(maxWidth: .infinity)
                     .padding()
-                    .background(Color.accentColor)
-                    .foregroundStyle(.white)
+                    .background(theme.primary)
+                    .foregroundStyle(theme.textOnPrimary)
                     .clipShape(RoundedRectangle(cornerRadius: 12))
             }
             .padding(.horizontal)
@@ -521,16 +778,19 @@ struct StatRow: View {
     let icon: String
     let label: String
     let value: String
-    
+    @Environment(\.dsTheme) private var theme
+
     var body: some View {
         HStack {
             Image(systemName: icon)
                 .frame(width: 30)
+                .foregroundStyle(theme.textSecondary)
             Text(label)
-                .foregroundStyle(.secondary)
+                .foregroundStyle(theme.textSecondary)
             Spacer()
             Text(value)
                 .fontWeight(.semibold)
+                .foregroundStyle(theme.textPrimary)
         }
     }
 }
@@ -538,6 +798,5 @@ struct StatRow: View {
 #Preview {
     NavigationStack {
         Text("Preview placeholder")
-        // ActiveWorkoutView requires a real workout
     }
 }

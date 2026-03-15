@@ -29,11 +29,11 @@ struct DSBadge: View {
 
     private var backgroundColor: Color {
         switch variant {
-        case .info: return .blue
-        case .success: return .green
-        case .warning: return .orange
-        case .error: return .red
-        case .neutral: return .gray
+        case .info: return DSColors.primary
+        case .success: return DSColors.success
+        case .warning: return DSColors.warning
+        case .error: return DSColors.destructive
+        case .neutral: return DSColors.secondary
         }
     }
 }
@@ -47,4 +47,5 @@ struct DSBadge: View {
         DSBadge(text: "Neutral", variant: .neutral)
     }
     .padding()
+    .background(DSColors.background)
 }

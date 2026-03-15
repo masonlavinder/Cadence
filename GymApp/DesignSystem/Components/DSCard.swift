@@ -17,6 +17,20 @@ struct DSCard<Content: View>: View {
     }
 }
 
+// MARK: - DSGlassCard
+
+struct DSGlassCard<Content: View>: View {
+    var padding: CGFloat = DSSpacing.lg
+    @ViewBuilder let content: () -> Content
+
+    var body: some View {
+        content()
+            .padding(padding)
+            .background(.ultraThinMaterial)
+            .clipShape(RoundedRectangle(cornerRadius: DSRadius.md))
+    }
+}
+
 // MARK: - Card ViewModifier
 
 struct DSCardModifier: ViewModifier {
@@ -32,9 +46,26 @@ struct DSCardModifier: ViewModifier {
     }
 }
 
+// MARK: - Glass Card ViewModifier
+
+struct DSGlassCardModifier: ViewModifier {
+    var padding: CGFloat = DSSpacing.lg
+
+    func body(content: Content) -> some View {
+        content
+            .padding(padding)
+            .background(.ultraThinMaterial)
+            .clipShape(RoundedRectangle(cornerRadius: DSRadius.md))
+    }
+}
+
 extension View {
     func dsCard(padding: CGFloat = DSSpacing.lg) -> some View {
         self.modifier(DSCardModifier(padding: padding))
+    }
+
+    func dsGlassCard(padding: CGFloat = DSSpacing.lg) -> some View {
+        self.modifier(DSGlassCardModifier(padding: padding))
     }
 }
 
@@ -47,9 +78,20 @@ extension View {
             }
         }
 
+        DSGlassCard {
+            VStack(alignment: .leading, spacing: DSSpacing.sm) {
+                Text("Glass Card").font(DSFont.headline.font)
+                Text("Translucent background").font(DSFont.body.font)
+            }
+        }
+
         Text("Using .dsCard() modifier")
             .frame(maxWidth: .infinity, alignment: .leading)
             .dsCard()
+
+        Text("Using .dsGlassCard() modifier")
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .dsGlassCard()
     }
     .padding()
     .background(DSColors.background)

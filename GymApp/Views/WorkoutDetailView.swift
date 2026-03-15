@@ -8,6 +8,7 @@ struct WorkoutDetailView: View {
 
     @Environment(WorkoutStore.self) private var workoutStore
     @Environment(SessionStore.self) private var sessionStore
+    @Environment(\.dsTheme) private var theme
     @State private var showingEditor = false
     @State private var showingActiveWorkout = false
     @State private var showingDeleteConfirmation = false
@@ -25,27 +26,28 @@ struct WorkoutDetailView: View {
                     if !workout.workoutDescription.isEmpty {
                         Text(workout.workoutDescription)
                             .font(.subheadline)
-                            .foregroundStyle(.secondary)
+                            .foregroundStyle(theme.textSecondary)
                     }
 
                     HStack(spacing: 16) {
-                        DetailBadge(icon: "flame.fill", label: workout.category.rawValue.capitalized, color: .orange)
-                        DetailBadge(icon: "speedometer", label: workout.difficulty.rawValue.capitalized, color: .blue)
-                        DetailBadge(icon: "clock", label: "\(workout.estimatedDurationMinutes) min", color: .green)
+                        DetailBadge(icon: "flame.fill", label: workout.category.rawValue.capitalized, color: DSColors.categoryColor(workout.category))
+                        DetailBadge(icon: "speedometer", label: workout.difficulty.rawValue.capitalized, color: theme.primary)
+                        DetailBadge(icon: "clock", label: "\(workout.estimatedDurationMinutes) min", color: theme.success)
                     }
 
                     if workout.timesCompleted > 0 {
                         HStack(spacing: 4) {
                             Image(systemName: "checkmark.circle.fill")
-                                .foregroundStyle(.green)
+                                .foregroundStyle(theme.success)
                                 .font(.caption)
                             Text("Completed \(workout.timesCompleted) time\(workout.timesCompleted == 1 ? "" : "s")")
                                 .font(.caption)
-                                .foregroundStyle(.secondary)
+                                .foregroundStyle(theme.textSecondary)
                         }
                     }
                 }
                 .padding(.vertical, 4)
+                .listRowBackground(Color.clear)
             }
 
             // Target Muscles
@@ -57,8 +59,8 @@ struct WorkoutDetailView: View {
                                 .font(.caption)
                                 .padding(.horizontal, 10)
                                 .padding(.vertical, 5)
-                                .background(Color.accentColor.opacity(0.1))
-                                .foregroundStyle(Color.accentColor)
+                                .background(theme.primary.opacity(0.1))
+                                .foregroundStyle(theme.primary)
                                 .clipShape(Capsule())
                         }
                     }
@@ -70,7 +72,7 @@ struct WorkoutDetailView: View {
             Section("Exercises (\(sortedEntries.count))") {
                 if sortedEntries.isEmpty {
                     Text("No exercises added yet")
-                        .foregroundStyle(.secondary)
+                        .foregroundStyle(theme.textSecondary)
                         .font(.subheadline)
                 } else {
                     ForEach(Array(sortedEntries.enumerated()), id: \.element.id) { index, entry in
@@ -104,8 +106,8 @@ struct WorkoutDetailView: View {
                         }
                         .padding(.vertical, 4)
                     }
-                    .foregroundStyle(.white)
-                    .listRowBackground(Color.accentColor)
+                    .foregroundStyle(theme.textOnPrimary)
+                    .listRowBackground(theme.primary)
                 }
             }
         }
@@ -161,6 +163,7 @@ struct WorkoutDetailView: View {
 struct ExerciseSequenceRow: View {
     let index: Int
     let entry: WorkoutEntry
+    @Environment(\.dsTheme) private var theme
 
     var body: some View {
         HStack(spacing: 12) {
@@ -168,9 +171,9 @@ struct ExerciseSequenceRow: View {
             Text("\(index + 1)")
                 .font(.caption)
                 .fontWeight(.bold)
-                .foregroundStyle(.white)
+                .foregroundStyle(theme.textOnPrimary)
                 .frame(width: 26, height: 26)
-                .background(Color.accentColor)
+                .background(theme.primary)
                 .clipShape(Circle())
 
             VStack(alignment: .leading, spacing: 4) {
@@ -181,7 +184,7 @@ struct ExerciseSequenceRow: View {
                 HStack(spacing: 8) {
                     Text(entry.displayConfiguration)
                         .font(.caption)
-                        .foregroundStyle(.secondary)
+                        .foregroundStyle(theme.textSecondary)
 
                     if entry.restBetweenSetsSeconds > 0 {
                         HStack(spacing: 2) {
@@ -190,14 +193,14 @@ struct ExerciseSequenceRow: View {
                             Text("\(entry.restBetweenSetsSeconds)s rest")
                                 .font(.caption)
                         }
-                        .foregroundStyle(.secondary)
+                        .foregroundStyle(theme.textSecondary)
                     }
                 }
 
                 if let notes = entry.notes, !notes.isEmpty {
                     Text(notes)
                         .font(.caption2)
-                        .foregroundStyle(.tertiary)
+                        .foregroundStyle(theme.textTertiary)
                         .lineLimit(1)
                 }
             }
@@ -207,10 +210,10 @@ struct ExerciseSequenceRow: View {
             VStack(alignment: .trailing, spacing: 2) {
                 Text("\(entry.totalEstimatedSeconds / 60)m")
                     .font(.caption2)
-                    .foregroundStyle(.secondary)
+                    .foregroundStyle(theme.textSecondary)
                 Image(systemName: "clock")
                     .font(.caption2)
-                    .foregroundStyle(.tertiary)
+                    .foregroundStyle(theme.textTertiary)
             }
         }
         .padding(.vertical, 2)

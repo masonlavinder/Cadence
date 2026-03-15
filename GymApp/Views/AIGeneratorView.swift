@@ -12,63 +12,64 @@ struct AIGeneratorView: View {
     @Environment(\.modelContext) private var modelContext
     @Environment(WorkoutStore.self) private var workoutStore
     @Environment(ExerciseStore.self) private var exerciseStore
-    
+    @Environment(\.dsTheme) private var theme
+
     @State private var category: WorkoutCategory = .strength
     @State private var selectedMuscles: Set<MuscleGroup> = []
     @State private var duration: Double = 30
     @State private var difficulty: Difficulty = .intermediate
     @State private var selectedEquipment: Set<Equipment> = []
     @State private var additionalNotes: String = ""
-    
+
     // AI state
     @State private var isGenerating = false
     @State private var generationError: String?
     @State private var modelAvailability: ModelAvailability = .checking
-    
+
     #if canImport(FoundationModels)
     private let model = SystemLanguageModel.default
     #endif
-    
+
     enum ModelAvailability: Equatable {
         case checking
         case available
         case unavailableUsingLocal(String)
     }
-    
+
     private var isModelAvailable: Bool {
         // Always return true - we'll use local generation as fallback
         return true
     }
-    
+
     var body: some View {
         Form {
             Section {
                 Text("AI Workout Generator")
                     .font(.title2)
                     .fontWeight(.bold)
-                
+
                 switch modelAvailability {
                 case .checking:
                     HStack {
                         ProgressView()
                             .controlSize(.small)
                         Text("Checking AI availability...")
-                            .foregroundStyle(.secondary)
+                            .foregroundStyle(theme.textSecondary)
                     }
                 case .available:
                     Text("Generate a personalized workout using on-device AI")
-                        .foregroundStyle(.secondary)
+                        .foregroundStyle(theme.textSecondary)
                 case .unavailableUsingLocal(let reason):
                     VStack(alignment: .leading, spacing: 8) {
                         Label("Using Smart Generator", systemImage: "brain")
-                            .foregroundStyle(.blue)
+                            .foregroundStyle(theme.primary)
                         Text(reason)
                             .font(.caption)
-                            .foregroundStyle(.secondary)
+                            .foregroundStyle(theme.textSecondary)
                     }
                 }
             }
-            
+
             if modelAvailability != .checking {
                 Section("Configuration") {
                     Picker("Category", selection: $category) {
@@ -76,24 +77,25 @@ struct AIGeneratorView: View {
                             Text(cat.rawValue.capitalized)
                         }
                     }
-                    
+
                     Picker("Difficulty", selection: $difficulty) {
                         ForEach(Difficulty.allCases, id: \.self) { diff in
                             Text(diff.rawValue.capitalized)
                         }
                     }
-                    
+
                     VStack(alignment: .leading) {
                         Text("Duration: \(formattedDuration)")
                         Slider(value: $duration, in: 5...240, step: 5)
+                            .tint(theme.primary)
                     }
                 }
-                
+
                 Section("Muscle Groups") {
                     Text("Select target muscles")
                         .font(.caption)
-                        .foregroundStyle(.secondary)
-                    
+                        .foregroundStyle(theme.textSecondary)
+
                     LazyVGrid(columns: [GridItem(.adaptive(minimum: 100))], spacing: 8) {
                         ForEach(MuscleGroup.allCases.prefix(10), id: \.self) { muscle in
                             MuscleChip(
@@ -110,12 +112,12 @@ struct AIGeneratorView: View {
                     }
                     .listRowInsets(EdgeInsets(top: 8, leading: 16, bottom: 8, trailing: 16))
                 }
-                
+
                 Section("Equipment") {
                     Text("Available equipment")
                         .font(.caption)
-                        .foregroundStyle(.secondary)
-                    
+                        .foregroundStyle(theme.textSecondary)
+
                     LazyVGrid(columns: [GridItem(.adaptive(minimum: 100))], spacing: 8) {
                         ForEach([Equipment.none, .barbell, .dumbbell, .kettlebell, .resistanceBand, .yogaMat], id: \.self) { equip in
                             EquipmentChip(
@@ -132,16 +134,16 @@ struct AIGeneratorView: View {
                     }
                     .listRowInsets(EdgeInsets(top: 8, leading: 16, bottom: 8, trailing: 16))
                 }
-                
+
                 Section("Additional Notes") {
                     TextField("Any special requests or injuries to avoid?", text: $additionalNotes, axis: .vertical)
                         .lineLimit(3...5)
                 }
-                
+
                 if let error = generationError {
                     Section {
                         Label(error, systemImage: "exclamationmark.triangle")
-                            .foregroundStyle(.red)
+                            .foregroundStyle(theme.destructive)
                     }
                 }
             }
@@ -155,7 +157,7 @@ struct AIGeneratorView: View {
                 }
                 .disabled(isGenerating)
             }
-            
+
             ToolbarItem(placement: .confirmationAction) {
                 Button(isGenerating ? "Generating..." : "Generate") {
                     Task {
@@ -169,9 +171,9 @@ struct AIGeneratorView: View {
             checkModelAvailability()
         }
     }
-    
+
     // MARK: - AI Generation
-    
+
     private var formattedDuration: String {
         let mins = Int(duration)
         if mins < 60 {
@@ -195,11 +197,11 @@ struct AIGeneratorView: View {
             break
         }
         #endif
-        
+
         // Fallback to local generation
         modelAvailability = .unavailableUsingLocal("Using intelligent workout builder based on fitness science")
     }
-    
+
     private func generateWorkout() async {
         isGenerating = true
         generationError = nil
@@ -227,23 +229,23 @@ struct AIGeneratorView: View {
             isGenerating = false
         }
     }
-    
+
     #if canImport(FoundationModels)
     private func generateWithAppleIntelligence() async throws {
         let instructions = createAIInstructions()
         let session = LanguageModelSession(instructions: instructions)
-        
+
         let prompt = createPrompt()
         let response = try await session.respond(to: prompt, generating: WorkoutPlan.self)
-        
+
         createWorkoutFromAIPlan(response.content)
     }
-    
+
     private func createAIInstructions() -> String {
         """
         You are a professional fitness trainer and workout planner.
         Your task is to create personalized workout plans based on user preferences.
-        
+
         Guidelines:
         - Create workouts that match the user's fitness level
         - Select exercises that target the specified muscle groups
@@ -252,40 +254,40 @@ struct AIGeneratorView: View {
         - Keep workouts within the specified duration
         - Provide brief, practical instructions
         - Be safety-conscious and recommend proper form
-        
+
         Respond with a structured workout plan in the requested format.
         """
     }
-    
+
     private func createPrompt() -> String {
         var prompt = """
         Create a \(difficulty.rawValue) level \(category.rawValue) workout that is approximately \(Int(duration)) minutes long.
         """
-        
+
         if !selectedMuscles.isEmpty {
             let muscleList = selectedMuscles.map { $0.rawValue }.joined(separator: ", ")
             prompt += "\nTarget these muscle groups: \(muscleList)"
         }
-        
+
         if !selectedEquipment.isEmpty {
             let equipmentList = selectedEquipment.map { $0.rawValue }.joined(separator: ", ")
             prompt += "\nUse only this available equipment: \(equipmentList)"
         } else {
             prompt += "\nNo equipment is available - use bodyweight exercises only."
         }
-        
+
         if !additionalNotes.isEmpty {
             prompt += "\nAdditional notes: \(additionalNotes)"
         }
-        
+
         prompt += "\n\nProvide a structured workout plan with exercise names, sets, reps (or duration), and rest periods."
-        
+
         return prompt
     }
     #endif
-    
+
     // MARK: - Local Workout Generation
-    
+
     private func generateWithLocalAlgorithm() async throws {
         // Simulate a brief delay to make it feel natural
         try await Task.sleep(nanoseconds: 500_000_000) // 0.5 seconds
@@ -314,13 +316,13 @@ struct AIGeneratorView: View {
             targetMuscleGroups: Array(selectedMuscles),
             requiredEquipment: Array(selectedEquipment)
         )
-        
+
         // Add to store
         workoutStore.create(workout)
-        
+
         // Get all available exercises for matching
         let availableExercises = exerciseStore.all()
-        
+
         // Add exercises from the plan
         for aiExercise in plan.exercises {
             // Try to find matching exercise in database
@@ -328,11 +330,11 @@ struct AIGeneratorView: View {
                 for: aiExercise.name,
                 in: availableExercises
             )
-            
+
             if let exercise = matchedExercise {
                 // Add the exercise to the workout
                 workoutStore.addExercise(exercise, to: workout)
-                
+
                 // Get the entry that was just created
                 if let entry = workout.entries.first(where: { $0.exerciseName == exercise.name }) {
                     // Update with AI-generated configuration
@@ -344,12 +346,12 @@ struct AIGeneratorView: View {
                 }
             }
         }
-        
+
         // Recalculate total duration
         workoutStore.recalculateDuration(workout)
     }
     #endif
-    
+
     private func createWorkoutFromLocalPlan(_ plan: LocalWorkoutPlan) {
         // Create the workout
         let workout = Workout(
@@ -360,14 +362,14 @@ struct AIGeneratorView: View {
             targetMuscleGroups: Array(selectedMuscles),
             requiredEquipment: Array(selectedEquipment)
         )
-        
+
         // Add to store
         workoutStore.create(workout)
-        
+
         // Add exercises from the plan
         for exerciseConfig in plan.exercises {
             workoutStore.addExercise(exerciseConfig.exercise, to: workout)
-            
+
             // Get the entry that was just created
             if let entry = workout.entries.first(where: { $0.exerciseName == exerciseConfig.exercise.name }) {
                 // Update with generated configuration
@@ -379,24 +381,24 @@ struct AIGeneratorView: View {
                 entry.notes = exerciseConfig.notes
             }
         }
-        
+
         // Recalculate total duration
         workoutStore.recalculateDuration(workout)
     }
-    
+
     private func findMatchingExercise(for name: String, in exercises: [Exercise]) -> Exercise? {
         let normalizedName = name.lowercased().trimmingCharacters(in: .whitespaces)
-        
+
         // Try exact match first
         if let exact = exercises.first(where: { $0.name.lowercased() == normalizedName }) {
             return exact
         }
-        
+
         // Try partial match
         if let partial = exercises.first(where: { $0.name.lowercased().contains(normalizedName) || normalizedName.contains($0.name.lowercased()) }) {
             return partial
         }
-        
+
         // If no match, create a basic exercise (you could enhance this)
         return exercises.first // Fallback to any exercise for now
     }
@@ -427,7 +429,7 @@ class LocalWorkoutGenerator {
     let targetMuscles: [MuscleGroup]
     let availableEquipment: [Equipment]
     let exerciseStore: ExerciseStore
-    
+
     init(category: WorkoutCategory, difficulty: Difficulty, duration: Int,
          targetMuscles: [MuscleGroup], availableEquipment: [Equipment],
          exerciseStore: ExerciseStore) {
@@ -438,11 +440,11 @@ class LocalWorkoutGenerator {
         self.availableEquipment = availableEquipment
         self.exerciseStore = exerciseStore
     }
-    
+
     func generate() -> LocalWorkoutPlan {
         // Get all available exercises
         var allExercises = exerciseStore.all()
-        
+
         // Filter by equipment
         if !availableEquipment.isEmpty && !availableEquipment.contains(.none) {
             allExercises = allExercises.filter { exercise in
@@ -452,7 +454,7 @@ class LocalWorkoutGenerator {
             // Only bodyweight exercises
             allExercises = allExercises.filter { $0.equipment == .none }
         }
-        
+
         // Filter by target muscles if specified
         var filteredExercises = allExercises
         if !targetMuscles.isEmpty {
@@ -461,37 +463,37 @@ class LocalWorkoutGenerator {
                 !Set(exercise.secondaryMuscleGroups).isDisjoint(with: targetMuscles)
             }
         }
-        
+
         // If filtering by muscles resulted in too few exercises, use all
         if filteredExercises.count < 5 {
             filteredExercises = allExercises
         }
-        
+
         // Calculate exercise count based on duration
         let exerciseCount = calculateExerciseCount(duration: duration)
-        
+
         // Select diverse exercises
         let selectedExercises = selectDiverseExercises(
             from: filteredExercises,
             count: exerciseCount
         )
-        
+
         // Create exercise configurations
         let exerciseConfigs = selectedExercises.map { exercise in
             createExerciseConfig(for: exercise)
         }
-        
+
         // Generate workout name and description
         let name = generateWorkoutName()
         let description = generateWorkoutDescription()
-        
+
         return LocalWorkoutPlan(
             name: name,
             description: description,
             exercises: exerciseConfigs
         )
     }
-    
+
     private func calculateExerciseCount(duration: Int) -> Int {
         // Estimate 5-7 minutes per exercise including rest
         switch duration {
@@ -502,14 +504,14 @@ class LocalWorkoutGenerator {
         default: return 12
         }
     }
-    
+
     private func selectDiverseExercises(from exercises: [Exercise], count: Int) -> [Exercise] {
         guard !exercises.isEmpty else { return [] }
-        
+
         var selected: [Exercise] = []
         var remaining = exercises
         var usedMuscleGroups: Set<MuscleGroup> = []
-        
+
         // Try to select exercises with diverse muscle groups
         while selected.count < count && !remaining.isEmpty {
             // Prefer exercises that target new muscle groups
@@ -518,7 +520,7 @@ class LocalWorkoutGenerator {
                 let ex2NewMuscles = Set(ex2.primaryMuscleGroups).subtracting(usedMuscleGroups).count
                 return ex1NewMuscles > ex2NewMuscles
             }
-            
+
             if let next = prioritized.first {
                 selected.append(next)
                 usedMuscleGroups.formUnion(next.primaryMuscleGroups)
@@ -527,10 +529,10 @@ class LocalWorkoutGenerator {
                 break
             }
         }
-        
+
         return selected
     }
-    
+
     private func createExerciseConfig(for exercise: Exercise) -> LocalExerciseConfig {
         // Determine sets based on difficulty
         let sets: Int
@@ -540,12 +542,12 @@ class LocalWorkoutGenerator {
         case .advanced: sets = 5
         case .brutal: sets = 6
         }
-        
+
         // Determine reps/duration based on exercise type and difficulty
         var reps: Int?
         var durationSeconds: Int?
         var notes: String?
-        
+
         switch exercise.exerciseType {
         case .strength:
             switch difficulty {
@@ -555,31 +557,31 @@ class LocalWorkoutGenerator {
             case .brutal: reps = 20
             }
             notes = "Focus on form over speed"
-            
+
         case .cardio, .plyometric:
             durationSeconds = difficulty == .beginner ? 30 : difficulty == .intermediate ? 45 : 60
             notes = "Maintain consistent pace"
-            
+
         case .flexibility, .pose:
             durationSeconds = difficulty == .beginner ? 30 : difficulty == .intermediate ? 45 : 60
             notes = "Breathe deeply and hold the position"
-            
+
         case .isometric:
             durationSeconds = difficulty == .beginner ? 20 : difficulty == .intermediate ? 30 : 45
             notes = "Hold position with good form"
-            
+
         case .interval:
             durationSeconds = 30
             notes = "Alternate between high and low intensity"
-            
+
         default:
             reps = 12
         }
-        
+
         // Rest periods based on difficulty
         let restBetween: Int
         let restAfter: Int
-        
+
         switch difficulty {
         case .beginner:
             restBetween = 90
@@ -594,7 +596,7 @@ class LocalWorkoutGenerator {
             restBetween = 30
             restAfter = 45
         }
-        
+
         return LocalExerciseConfig(
             exercise: exercise,
             sets: sets,
@@ -605,12 +607,12 @@ class LocalWorkoutGenerator {
             notes: notes
         )
     }
-    
+
     private func generateWorkoutName() -> String {
         let difficultyPrefix = difficulty.rawValue.capitalized
         let categoryName = category.rawValue.capitalized
         let durationText = "\(duration)-Min"
-        
+
         if !targetMuscles.isEmpty {
             let muscleText = targetMuscles.first?.rawValue.capitalized ?? "Full Body"
             return "\(durationText) \(difficultyPrefix) \(muscleText) \(categoryName)"
@@ -618,24 +620,24 @@ class LocalWorkoutGenerator {
             return "\(durationText) \(difficultyPrefix) \(categoryName)"
         }
     }
-    
+
     private func generateWorkoutDescription() -> String {
         var description = "A \(difficulty.rawValue) level \(category.rawValue) workout"
-        
+
         if !targetMuscles.isEmpty {
             let muscleList = targetMuscles.prefix(3).map { $0.rawValue }.joined(separator: ", ")
             description += " targeting \(muscleList)"
         }
-        
+
         if !availableEquipment.isEmpty && !availableEquipment.contains(.none) {
             let equipList = availableEquipment.prefix(2).map { $0.rawValue }.joined(separator: ", ")
             description += " using \(equipList)"
         } else if availableEquipment.contains(.none) {
             description += " using bodyweight exercises"
         }
-        
+
         description += ". Designed to be completed in approximately \(duration) minutes."
-        
+
         return description
     }
 }
@@ -647,10 +649,10 @@ class LocalWorkoutGenerator {
 struct WorkoutPlan {
     @Guide(description: "Name of the workout (e.g., 'Full Body Strength')")
     var name: String
-    
+
     @Guide(description: "Brief description of the workout and its benefits")
     var description: String
-    
+
     @Guide(description: "List of exercises in the workout", .count(5...12))
     var exercises: [WorkoutExercise]
 }
@@ -659,19 +661,19 @@ struct WorkoutPlan {
 struct WorkoutExercise {
     @Guide(description: "Name of the exercise (e.g., 'Push-ups', 'Squats')")
     var name: String
-    
+
     @Guide(description: "Number of sets to perform", .range(1...5))
     var sets: Int
-    
+
     @Guide(description: "Number of repetitions per set (use 0 if time-based)", .range(0...50))
     var reps: Int?
-    
+
     @Guide(description: "Duration in seconds if time-based (use 0 if rep-based)", .range(0...300))
     var durationSeconds: Int?
-    
+
     @Guide(description: "Rest time between sets in seconds", .range(30...180))
     var restSeconds: Int
-    
+
     @Guide(description: "Brief notes about form or modifications")
     var notes: String?
 }
@@ -683,15 +685,16 @@ struct MuscleChip: View {
     let muscle: MuscleGroup
     let isSelected: Bool
     let action: () -> Void
-    
+    @Environment(\.dsTheme) private var theme
+
     var body: some View {
         Button(action: action) {
             Text(muscle.rawValue)
                 .font(.caption)
                 .padding(.horizontal, 12)
                 .padding(.vertical, 6)
-                .background(isSelected ? Color.accentColor : Color.secondary.opacity(0.1))
-                .foregroundStyle(isSelected ? .white : .primary)
+                .background(isSelected ? theme.primary : theme.secondary.opacity(0.15))
+                .foregroundStyle(isSelected ? theme.textOnPrimary : theme.textPrimary)
                 .clipShape(Capsule())
         }
         .buttonStyle(.plain)
@@ -704,7 +707,8 @@ struct EquipmentChip: View {
     let equipment: Equipment
     let isSelected: Bool
     let action: () -> Void
-    
+    @Environment(\.dsTheme) private var theme
+
     var body: some View {
         Button(action: action) {
             HStack(spacing: 4) {
@@ -715,8 +719,8 @@ struct EquipmentChip: View {
             }
             .padding(.horizontal, 10)
             .padding(.vertical, 6)
-            .background(isSelected ? Color.accentColor : Color.secondary.opacity(0.1))
-            .foregroundStyle(isSelected ? .white : .primary)
+            .background(isSelected ? theme.primary : theme.secondary.opacity(0.15))
+            .foregroundStyle(isSelected ? theme.textOnPrimary : theme.textPrimary)
             .clipShape(Capsule())
         }
         .buttonStyle(.plain)

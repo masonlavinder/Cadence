@@ -224,6 +224,7 @@ struct MuscleToggleChip: View {
     let label: String
     let isSelected: Bool
     let action: () -> Void
+    @Environment(\.dsTheme) private var theme
 
     var body: some View {
         Button(action: action) {
@@ -233,8 +234,8 @@ struct MuscleToggleChip: View {
                 .padding(.horizontal, 10)
                 .padding(.vertical, 6)
                 .frame(maxWidth: .infinity)
-                .background(isSelected ? Color.accentColor : Color.secondary.opacity(0.1))
-                .foregroundStyle(isSelected ? .white : .primary)
+                .background(isSelected ? theme.primary : theme.secondary.opacity(0.15))
+                .foregroundStyle(isSelected ? theme.textOnPrimary : theme.textPrimary)
                 .clipShape(Capsule())
         }
         .buttonStyle(.plain)

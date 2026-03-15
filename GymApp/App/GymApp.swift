@@ -2,15 +2,15 @@ import SwiftUI
 import SwiftData
 
 @main
-struct GymApp: App {
+struct CadenceApp: App {
     // SwiftData model container with all model types registered
     let modelContainer: ModelContainer
-    
+
     // Stores initialized with the model context
     let exerciseStore: ExerciseStore
     let workoutStore: WorkoutStore
     let sessionStore: SessionStore
-    
+
     init() {
         // Register all @Model types
         let schema = Schema([
@@ -21,15 +21,15 @@ struct GymApp: App {
             EntrySessionLog.self,
             Share.self
         ])
-        
+
         let modelConfiguration = ModelConfiguration(schema: schema, isStoredInMemoryOnly: false)
-        
+
         do {
             modelContainer = try ModelContainer(for: schema, configurations: [modelConfiguration])
         } catch {
             fatalError("Could not create ModelContainer: \(error)")
         }
-        
+
         // Initialize stores with the main context
         let context = modelContainer.mainContext
         exerciseStore = ExerciseStore(modelContext: context)
@@ -39,7 +39,7 @@ struct GymApp: App {
         // Seed built-in exercises on first launch
         exerciseStore.seedIfNeeded()
     }
-    
+
     var body: some Scene {
         WindowGroup {
             ContentView()
@@ -47,6 +47,7 @@ struct GymApp: App {
                 .environment(workoutStore)
                 .environment(sessionStore)
                 .dsTheme(.default)
+                .preferredColorScheme(.dark)
         }
         .modelContainer(modelContainer)
     }

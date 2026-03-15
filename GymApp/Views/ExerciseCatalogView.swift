@@ -5,6 +5,7 @@ import SwiftData
 
 struct ExerciseCatalogView: View {
     @Environment(ExerciseStore.self) private var exerciseStore
+    @Environment(\.dsTheme) private var theme
 
     @State private var searchText = ""
     @State private var selectedType: ExerciseType? = nil
@@ -80,14 +81,14 @@ struct ExerciseCatalogView: View {
                             }
                         }
                     }
-                    .background(Color(.secondarySystemGroupedBackground))
+                    .background(theme.surface)
                     .clipShape(RoundedRectangle(cornerRadius: 12))
                     .padding(.horizontal, 16)
                     .padding(.top, 8)
                 }
             }
         }
-        .background(Color(.systemGroupedBackground))
+        .background(theme.background)
         .navigationBarHidden(true)
         .sheet(isPresented: $showingNewExercise) {
             NavigationStack {
@@ -124,8 +125,8 @@ struct ExerciseCatalogView: View {
             .font(.subheadline)
             .padding(.horizontal, 12)
             .padding(.vertical, 8)
-            .background(selectedType != nil ? Color.accentColor : Color.secondary.opacity(0.1))
-            .foregroundStyle(selectedType != nil ? .white : .primary)
+            .background(selectedType != nil ? theme.primary : theme.secondary.opacity(0.15))
+            .foregroundStyle(selectedType != nil ? theme.textOnPrimary : theme.textPrimary)
             .clipShape(Capsule())
         }
 
@@ -145,8 +146,8 @@ struct ExerciseCatalogView: View {
             .font(.subheadline)
             .padding(.horizontal, 12)
             .padding(.vertical, 8)
-            .background(selectedEquipment != nil ? Color.accentColor : Color.secondary.opacity(0.1))
-            .foregroundStyle(selectedEquipment != nil ? .white : .primary)
+            .background(selectedEquipment != nil ? theme.primary : theme.secondary.opacity(0.15))
+            .foregroundStyle(selectedEquipment != nil ? theme.textOnPrimary : theme.textPrimary)
             .clipShape(Capsule())
         }
     }
@@ -156,33 +157,37 @@ struct ExerciseCatalogView: View {
 
 struct ExerciseRow: View {
     let exercise: Exercise
+    @Environment(\.dsTheme) private var theme
 
     var body: some View {
         HStack(spacing: 12) {
+            let typeColor = DSColors.exerciseTypeColor(exercise.exerciseType)
             Image(systemName: iconForType(exercise.exerciseType))
                 .font(.title2)
-                .foregroundStyle(colorForType(exercise.exerciseType))
+                .foregroundStyle(typeColor)
                 .frame(width: 40)
 
             VStack(alignment: .leading, spacing: 4) {
                 HStack {
                     Text(exercise.name)
                         .font(.headline)
+                        .foregroundStyle(theme.textPrimary)
 
                     if exercise.isFavorite {
                         Image(systemName: "star.fill")
                             .font(.caption2)
-                            .foregroundStyle(.orange)
+                            .foregroundStyle(theme.warning)
                     }
                 }
 
                 HStack(spacing: 8) {
+                    let typeColor = DSColors.exerciseTypeColor(exercise.exerciseType)
                     Text(exercise.exerciseType.rawValue.capitalized)
                         .font(.caption2)
                         .padding(.horizontal, 6)
                         .padding(.vertical, 2)
-                        .background(colorForType(exercise.exerciseType).opacity(0.2))
-                        .foregroundStyle(colorForType(exercise.exerciseType))
+                        .background(typeColor.opacity(0.2))
+                        .foregroundStyle(typeColor)
                         .clipShape(Capsule())
 
                     if exercise.equipment != .none {
@@ -191,14 +196,14 @@ struct ExerciseRow: View {
                             Text(exercise.equipment.rawValue)
                         }
                         .font(.caption2)
-                        .foregroundStyle(.secondary)
+                        .foregroundStyle(theme.textSecondary)
                     }
                 }
 
                 if !exercise.primaryMuscleGroups.isEmpty {
                     Text(exercise.primaryMuscleGroups.map { $0.rawValue }.joined(separator: ", "))
                         .font(.caption)
-                        .foregroundStyle(.secondary)
+                        .foregroundStyle(theme.textSecondary)
                         .lineLimit(1)
                 }
             }
@@ -207,7 +212,7 @@ struct ExerciseRow: View {
 
             Image(systemName: "chevron.right")
                 .font(.caption)
-                .foregroundStyle(.tertiary)
+                .foregroundStyle(theme.textTertiary)
         }
         .padding(.vertical, 4)
     }
@@ -226,20 +231,6 @@ struct ExerciseRow: View {
         case .breathwork: return "lungs"
         }
     }
-
-    private func colorForType(_ type: ExerciseType) -> Color {
-        switch type {
-        case .strength: return .blue
-        case .cardio: return .orange
-        case .flexibility, .pose: return .purple
-        case .balance: return .green
-        case .plyometric: return .red
-        case .isometric: return .cyan
-        case .interval: return .pink
-        case .distance: return .yellow
-        case .breathwork: return .mint
-        }
-    }
 }
 
 // MARK: - ExerciseDetailView
@@ -247,6 +238,7 @@ struct ExerciseRow: View {
 struct ExerciseDetailView: View {
     let exercise: Exercise
     @Environment(ExerciseStore.self) private var exerciseStore
+    @Environment(\.dsTheme) private var theme
     @State private var showingEditor = false
 
     var body: some View {
@@ -257,6 +249,7 @@ struct ExerciseDetailView: View {
                         Text(exercise.name)
                             .font(.title2)
                             .fontWeight(.bold)
+                            .foregroundStyle(theme.textPrimary)
 
                         Spacer()
 
@@ -264,7 +257,7 @@ struct ExerciseDetailView: View {
                             exerciseStore.toggleFavorite(exercise)
                         } label: {
                             Image(systemName: exercise.isFavorite ? "star.fill" : "star")
-                                .foregroundStyle(.orange)
+                                .foregroundStyle(theme.warning)
                                 .font(.title3)
                         }
                     }
@@ -272,7 +265,7 @@ struct ExerciseDetailView: View {
                     if !exercise.exerciseDescription.isEmpty {
                         Text(exercise.exerciseDescription)
                             .font(.body)
-                            .foregroundStyle(.secondary)
+                            .foregroundStyle(theme.textSecondary)
                     }
                 }
                 .padding(.vertical, 8)
@@ -285,14 +278,14 @@ struct ExerciseDetailView: View {
                 if !exercise.primaryMuscleGroups.isEmpty {
                     LabeledContent("Primary Muscles") {
                         Text(exercise.primaryMuscleGroups.map { $0.rawValue }.joined(separator: ", "))
-                            .foregroundStyle(.secondary)
+                            .foregroundStyle(theme.textSecondary)
                     }
                 }
 
                 if !exercise.secondaryMuscleGroups.isEmpty {
                     LabeledContent("Secondary Muscles") {
                         Text(exercise.secondaryMuscleGroups.map { $0.rawValue }.joined(separator: ", "))
-                            .foregroundStyle(.secondary)
+                            .foregroundStyle(theme.textSecondary)
                     }
                 }
             }

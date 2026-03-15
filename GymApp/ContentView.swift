@@ -1,6 +1,6 @@
 //
 //  ContentView.swift
-//  GymApp
+//  Cadence
 //
 //  Created by S. Mason Lavinder on 3/14/26.
 //
@@ -19,7 +19,7 @@ struct ContentView: View {
             .tabItem {
                 Label("Workouts", systemImage: "dumbbell")
             }
-            
+
             // Exercise Catalog Tab
             NavigationStack {
                 ExerciseCatalogView()
@@ -27,7 +27,7 @@ struct ContentView: View {
             .tabItem {
                 Label("Exercises", systemImage: "figure.strengthtraining.traditional")
             }
-            
+
             // History Tab
             NavigationStack {
                 HistoryView()
@@ -35,7 +35,18 @@ struct ContentView: View {
             .tabItem {
                 Label("History", systemImage: "clock.arrow.circlepath")
             }
+
+            // Coach Tab
+            if FeatureFlags.coachTab {
+                NavigationStack {
+                    ChatView()
+                }
+                .tabItem {
+                    Label("Coach", systemImage: "bubble.left.and.text.bubble.right")
+                }
+            }
         }
+        .toolbarBackground(.ultraThinMaterial, for: .tabBar)
     }
 }
 
@@ -43,14 +54,14 @@ struct ContentView: View {
 
 struct HistoryView: View {
     @Environment(SessionStore.self) private var sessionStore
-    
+
     var body: some View {
         List {
             ForEach(sessionStore.recentSessions(limit: 50)) { session in
                 VStack(alignment: .leading, spacing: 4) {
                     Text(session.workoutName)
                         .font(.headline)
-                    
+
                     HStack {
                         Text(session.formattedDuration)
                         Text("•")
@@ -79,10 +90,10 @@ struct HistoryView: View {
 #Preview {
     ContentView()
         .modelContainer(for: [Exercise.self, Workout.self], inMemory: true)
-        .environment(ExerciseStore(modelContext: 
+        .environment(ExerciseStore(modelContext:
             try! ModelContainer(for: Exercise.self, Workout.self).mainContext))
-        .environment(WorkoutStore(modelContext: 
+        .environment(WorkoutStore(modelContext:
             try! ModelContainer(for: Exercise.self, Workout.self).mainContext))
-        .environment(SessionStore(modelContext: 
+        .environment(SessionStore(modelContext:
             try! ModelContainer(for: Exercise.self, Workout.self).mainContext))
 }

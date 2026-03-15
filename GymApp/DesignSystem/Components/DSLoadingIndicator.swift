@@ -33,13 +33,13 @@ struct DSSkeleton: View {
 
     var body: some View {
         RoundedRectangle(cornerRadius: DSRadius.sm)
-            .fill(Color(.systemGray5))
+            .fill(DSColors.surfaceElevated)
             .frame(width: width, height: height)
             .overlay {
                 RoundedRectangle(cornerRadius: DSRadius.sm)
                     .fill(
                         LinearGradient(
-                            colors: [.clear, Color.white.opacity(0.3), .clear],
+                            colors: [.clear, DSColors.textTertiary.opacity(0.2), .clear],
                             startPoint: .leading,
                             endPoint: .trailing
                         )
@@ -66,4 +66,5 @@ struct DSSkeleton: View {
         }
         .padding()
     }
+    .background(DSColors.background)
 }
