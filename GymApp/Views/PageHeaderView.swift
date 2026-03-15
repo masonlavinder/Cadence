@@ -26,27 +26,32 @@ struct PageHeaderView<Filters: View>: View {
 
                 Spacer()
 
-                if let secondaryLabel = secondaryButtonLabel,
-                   let secondaryIcon = secondaryButtonIcon,
-                   let secondaryAction = onSecondaryButtonTap {
+                HStack(spacing: 16) {
+                    if let secondaryIcon = secondaryButtonIcon,
+                       let secondaryAction = onSecondaryButtonTap {
+                        Button {
+                            secondaryAction()
+                        } label: {
+                            Image(systemName: secondaryIcon)
+                                .font(.title2)
+                                .frame(width: 44, height: 44)
+                                .foregroundStyle(Color.accentColor)
+                                .contentShape(Rectangle())
+                        }
+                        .buttonStyle(.plain)
+                    }
+
                     Button {
-                        secondaryAction()
+                        onButtonTap()
                     } label: {
-                        Image(systemName: secondaryIcon)
-                            .font(.title3)
+                        Image(systemName: buttonIcon)
+                            .font(.title)
+                            .frame(width: 44, height: 44)
                             .foregroundStyle(Color.accentColor)
+                            .contentShape(Rectangle())
                     }
                     .buttonStyle(.plain)
                 }
-
-                Button {
-                    onButtonTap()
-                } label: {
-                    Image(systemName: buttonIcon)
-                        .font(.title2)
-                        .foregroundStyle(Color.accentColor)
-                }
-                .buttonStyle(.plain)
             }
 
             // Search bar
