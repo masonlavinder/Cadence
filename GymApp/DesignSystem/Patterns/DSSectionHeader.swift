@@ -33,7 +33,7 @@ struct DSSectionHeader: View {
 
 #Preview {
     VStack(spacing: DSSpacing.lg) {
-        DSSectionHeader(title: "Exercises")
+        DSSectionHeader(title: "Movements")
         DSSectionHeader(title: "Recent", actionTitle: "See All") {}
     }
     .padding()

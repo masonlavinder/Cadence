@@ -69,9 +69,9 @@ struct WorkoutDetailView: View {
             }
 
             // Exercise Sequence
-            Section("Exercises (\(sortedEntries.count))") {
+            Section("Movements (\(sortedEntries.count))") {
                 if sortedEntries.isEmpty {
-                    Text("No exercises added yet")
+                    Text("No movements added yet")
                         .foregroundStyle(theme.textSecondary)
                         .font(.subheadline)
                 } else {
@@ -84,7 +84,7 @@ struct WorkoutDetailView: View {
             // Stats
             if !sortedEntries.isEmpty {
                 Section("Summary") {
-                    LabeledContent("Total Exercises", value: "\(sortedEntries.count)")
+                    LabeledContent("Total Movements", value: "\(sortedEntries.count)")
                     LabeledContent("Total Sets", value: "\(sortedEntries.reduce(0) { $0 + $1.sets })")
 
                     let totalSeconds = sortedEntries.reduce(0) { $0 + $1.totalEstimatedSeconds }
@@ -143,7 +143,7 @@ struct WorkoutDetailView: View {
             }
             Button("Cancel", role: .cancel) {}
         } message: {
-            Text("This workout and all its exercises will be permanently removed.")
+            Text("This workout and all its movements will be permanently removed.")
         }
         .sheet(isPresented: $showingEditor) {
             NavigationStack {

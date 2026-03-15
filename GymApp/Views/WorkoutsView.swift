@@ -165,93 +165,50 @@ struct WorkoutCardView: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 10) {
             // Header
-            HStack {
-                Text(workout.name)
-                    .font(.headline)
-                    .foregroundStyle(theme.textPrimary)
+            VStack(alignment: .leading, spacing: 3) {
+                HStack(spacing: 6) {
+                    Button {
+                        workoutStore.toggleFavorite(workout)
+                    } label: {
+                        Image(systemName: workout.isFavorite ? "star.fill" : "star")
+                            .foregroundStyle(workout.isFavorite ? theme.warning : theme.textTertiary)
+                            .font(.caption)
+                    }
+                    .buttonStyle(.plain)
 
-                Spacer()
-
-                Button {
-                    workoutStore.toggleFavorite(workout)
-                } label: {
-                    Image(systemName: workout.isFavorite ? "star.fill" : "star")
-                        .foregroundStyle(workout.isFavorite ? theme.warning : theme.textTertiary)
-                        .font(.callout)
+                    Text(workout.name)
+                        .font(.headline)
+                        .foregroundStyle(theme.textPrimary)
+                        .lineLimit(1)
+                        .truncationMode(.tail)
                 }
-                .buttonStyle(.plain)
-            }
 
-            // Metadata
-            HStack(spacing: 12) {
-                let catColor = DSColors.categoryColor(workout.category)
-                Text(workout.category.rawValue.capitalized)
-                    .font(.caption2)
-                    .fontWeight(.semibold)
-                    .padding(.horizontal, 8)
-                    .padding(.vertical, 4)
-                    .background(catColor.opacity(0.2))
-                    .foregroundStyle(catColor)
-                    .clipShape(Capsule())
-
-                Text(workout.difficulty.rawValue.capitalized)
-                    .font(.caption2)
-                    .foregroundStyle(theme.textSecondary)
-
-                HStack(spacing: 2) {
-                    Image(systemName: "clock")
+                HStack(spacing: 8) {
+                    let catColor = DSColors.categoryColor(workout.category)
+                    Text(workout.category.rawValue.capitalized)
                         .font(.caption2)
+                        .fontWeight(.semibold)
+                        .padding(.horizontal, 8)
+                        .padding(.vertical, 3)
+                        .background(catColor.opacity(0.2))
+                        .foregroundStyle(catColor)
+                        .clipShape(Capsule())
+
                     Text("\(workout.estimatedDurationMinutes) min")
                         .font(.caption2)
-                }
-                .foregroundStyle(theme.textSecondary)
+                        .foregroundStyle(theme.textSecondary)
 
-                if !workout.entries.isEmpty {
-                    HStack(spacing: 2) {
-                        Image(systemName: "figure.strengthtraining.traditional")
-                            .font(.caption2)
-                        Text("\(workout.entries.count)")
-                            .font(.caption2)
-                    }
-                    .foregroundStyle(theme.textSecondary)
-                }
+                    Text("·")
+                        .foregroundStyle(theme.textTertiary)
 
-                Spacer()
-            }
-
-            // Muscle Groups
-            if !workout.targetMuscleGroups.isEmpty {
-                ScrollView(.horizontal, showsIndicators: false) {
-                    HStack(spacing: 6) {
-                        ForEach(workout.targetMuscleGroups.prefix(5), id: \.self) { muscle in
-                            Text(muscle.rawValue)
-                                .font(.caption2)
-                                .padding(.horizontal, 6)
-                                .padding(.vertical, 2)
-                                .background(theme.secondary.opacity(0.15))
-                                .foregroundStyle(theme.textSecondary)
-                                .clipShape(Capsule())
-                        }
-                    }
+                    Text(workout.difficulty.rawValue.capitalized)
+                        .font(.caption2)
+                        .foregroundStyle(theme.textSecondary)
                 }
             }
 
             // Action Buttons
-            HStack(spacing: 12) {
-                Button {
-                    onStart()
-                } label: {
-                    Label("Start", systemImage: "play.fill")
-                        .font(.subheadline)
-                        .fontWeight(.semibold)
-                        .frame(maxWidth: .infinity)
-                        .padding(.vertical, 8)
-                        .background(theme.primary)
-                        .foregroundStyle(theme.textOnPrimary)
-                        .clipShape(RoundedRectangle(cornerRadius: 8))
-                }
-                .buttonStyle(.plain)
-
+            HStack(spacing: 10) {
                 NavigationLink {
                     WorkoutDetailView(workout: workout)
                 } label: {
@@ -262,6 +219,20 @@ struct WorkoutCardView: View {
                         .padding(.vertical, 8)
                         .background(theme.secondary.opacity(0.15))
                         .foregroundStyle(theme.textPrimary)
+                        .clipShape(RoundedRectangle(cornerRadius: 8))
+                }
+                .buttonStyle(.plain)
+
+                Button {
+                    onStart()
+                } label: {
+                    Label("Start", systemImage: "play.fill")
+                        .font(.subheadline)
+                        .fontWeight(.semibold)
+                        .frame(maxWidth: .infinity)
+                        .padding(.vertical, 8)
+                        .background(theme.primary)
+                        .foregroundStyle(theme.textOnPrimary)
                         .clipShape(RoundedRectangle(cornerRadius: 8))
                 }
                 .buttonStyle(.plain)

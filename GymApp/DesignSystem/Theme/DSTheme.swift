@@ -7,6 +7,7 @@ struct DSTheme {
     let surface: Color
     let surfaceElevated: Color
     let primary: Color
+    let primaryLight: Color
     let secondary: Color
     let destructive: Color
     let success: Color
@@ -24,6 +25,7 @@ struct DSTheme {
         surface: DSColors.surface,
         surfaceElevated: DSColors.surfaceElevated,
         primary: DSColors.primary,
+        primaryLight: DSColors.primaryLight,
         secondary: DSColors.secondary,
         destructive: DSColors.destructive,
         success: DSColors.success,

@@ -145,20 +145,20 @@ struct WorkoutEditorView: View {
                     }
                 } else {
                     ContentUnavailableView(
-                        "No Exercises",
+                        "No Movements",
                         systemImage: "list.bullet.clipboard",
-                        description: Text("Add exercises to build your workout")
+                        description: Text("Add movements to build your workout")
                     )
                 }
             } header: {
                 HStack {
-                    Text("Exercises")
+                    Text("Movements")
                     Spacer()
                     Button {
                         ensureWorkoutExists()
                         sheetType = .exercisePicker
                     } label: {
-                        Label("Add Exercise", systemImage: "plus.circle.fill")
+                        Label("Add Movement", systemImage: "plus.circle.fill")
                             .font(.subheadline)
                     }
                 }
@@ -462,8 +462,8 @@ struct ExercisePickerView: View {
                 }
             }
         }
-        .searchable(text: $searchText, prompt: "Search exercises")
-        .navigationTitle("Add Exercise")
+        .searchable(text: $searchText, prompt: "Search movements")
+        .navigationTitle("Add Movement")
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {
             ToolbarItem(placement: .cancellationAction) {
@@ -569,7 +569,7 @@ struct EntryEditorSheet: View {
 
     var body: some View {
         Form {
-            Section("Exercise") {
+            Section("Movement") {
                 Text(entry.exerciseName)
                     .font(.headline)
             }
@@ -594,7 +594,7 @@ struct EntryEditorSheet: View {
                     .lineLimit(3...6)
             }
         }
-        .navigationTitle("Edit Exercise")
+        .navigationTitle("Edit Movement")
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {
             ToolbarItem(placement: .cancellationAction) {

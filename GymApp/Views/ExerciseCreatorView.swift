@@ -57,7 +57,7 @@ struct ExerciseCreatorView: View {
         Form {
             // MARK: Basic Info
             Section("Basic Info") {
-                TextField("Exercise Name", text: $name)
+                TextField("Movement Name", text: $name)
                     .font(.headline)
 
                 TextField("Description (optional)", text: $exerciseDescription, axis: .vertical)
@@ -148,7 +148,7 @@ struct ExerciseCreatorView: View {
                     .lineLimit(3...8)
             }
         }
-        .navigationTitle(existingExercise == nil ? "New Exercise" : "Edit Exercise")
+        .navigationTitle(existingExercise == nil ? "New Movement" : "Edit Movement")
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {
             ToolbarItem(placement: .cancellationAction) {

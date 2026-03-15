@@ -20,12 +20,13 @@ extension Color {
 
 enum DSColors {
     // Backgrounds (greyscale)
-    static let background = Color(hex: "0E0E0E")
+    static let background = Color(hex: "0F0F0F")
     static let surface = Color(hex: "1A1A1A")
     static let surfaceElevated = Color(hex: "252525")
 
     // Brand / Actions
-    static let primary = Color(hex: "F4A89A")           // Peach
+    static let primary = Color(hex: "F4A27A")           // Warm peach
+    static let primaryLight = Color(hex: "FCEADE")       // Light peach
     static let secondary = Color(hex: "6B6B6B")
     static let destructive = Color(hex: "FF6B6B")
     static let success = Color(hex: "7ECFA0")

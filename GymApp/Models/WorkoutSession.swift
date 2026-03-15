@@ -17,6 +17,9 @@ final class WorkoutSession: BaseEntity {
     
     /// Denormalized workout name for history display
     var workoutName: String
+
+    /// Denormalized workout category for analytics grouping
+    var workoutCategory: WorkoutCategory
     
     // MARK: - Session Status
     var status: SessionStatus
@@ -50,15 +53,17 @@ final class WorkoutSession: BaseEntity {
     init(
         workoutId: UUID,
         workoutName: String,
+        workoutCategory: WorkoutCategory = .custom,
         totalExercises: Int
     ) {
         let (id, createdAt, updatedAt) = newBaseFields()
         self.id = id
         self.createdAt = createdAt
         self.updatedAt = updatedAt
-        
+
         self.workoutId = workoutId
         self.workoutName = workoutName
+        self.workoutCategory = workoutCategory
         self.status = .inProgress
         self.startedAt = Date()
         self.completedAt = nil

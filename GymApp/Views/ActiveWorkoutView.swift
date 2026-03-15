@@ -131,7 +131,7 @@ struct ActiveWorkoutView: View {
             Text("You've completed \(Int(engine.completionPercentage * 100))% of the workout.")
         }
         .sheet(isPresented: $showingDeferredQueue) {
-            DeferredQueueSheet(engine: engine)
+            WorkoutFlowSheet(engine: engine)
         }
         .onAppear {
             startPrep()
@@ -246,20 +246,15 @@ struct ActiveWorkoutView: View {
 
                 Spacer()
 
-                if !engine.deferredQueue.isEmpty {
-                    Button {
-                        showingDeferredQueue = true
-                    } label: {
-                        Text("\(engine.deferredQueue.count)")
-                            .font(.caption2)
-                            .fontWeight(.bold)
-                            .foregroundStyle(theme.warning)
-                            .frame(width: 32, height: 32)
-                            .background(theme.warning.opacity(0.15))
-                            .clipShape(Circle())
-                    }
-                } else {
-                    Color.clear.frame(width: 32, height: 32)
+                Button {
+                    showingDeferredQueue = true
+                } label: {
+                    Image(systemName: "list.bullet")
+                        .font(.body)
+                        .fontWeight(.medium)
+                        .foregroundStyle(screenForegroundSecondary)
+                        .frame(width: 32, height: 32)
+                        .contentShape(Rectangle())
                 }
             }
             .padding(.horizontal, 16)
@@ -482,19 +477,22 @@ struct ActiveWorkoutView: View {
     private var timerProgress: Double {
         guard let entry = engine.currentEntry else { return 0 }
 
-        let total: Double
+        let base: Double
         switch engine.phase {
         case .exercise:
-            total = Double(entry.estimatedDurationPerSetSeconds)
+            base = Double(entry.estimatedDurationPerSetSeconds)
         case .restBetweenSets:
-            total = Double(entry.restBetweenSetsSeconds)
+            base = Double(entry.restBetweenSetsSeconds)
         case .restAfterBlock:
-            total = Double(entry.restAfterExerciseSeconds)
+            base = Double(entry.restAfterExerciseSeconds)
         case .waitingForUser:
             return 1.0
         }
 
         let remaining = Double(engine.secondsRemaining)
+        // Use the larger of base or remaining so +30s extends the ring instead of overflowing
+        let total = max(base, remaining)
+        guard total > 0 else { return 0 }
         return 1.0 - (remaining / total)
     }
 
@@ -514,7 +512,7 @@ struct ActiveWorkoutView: View {
     private var phaseLabel: String {
         switch engine.phase {
         case .exercise:
-            return "Exercise"
+            return "Go"
         case .restBetweenSets:
             return "Rest"
         case .restAfterBlock:
@@ -612,94 +610,176 @@ struct BigButtonPanel: View {
                 }
             }
 
-            HStack(spacing: 12) {
-                Button {
-                    engine.skipExercise()
-                } label: {
-                    Label("Skip", systemImage: "forward.fill")
-                        .font(.subheadline)
-                        .frame(maxWidth: .infinity)
-                        .padding(.vertical, 12)
-                        .background(secondaryButtonBg)
-                        .foregroundStyle(secondaryButtonFg)
-                        .clipShape(RoundedRectangle(cornerRadius: 10))
-                }
-
-                Button {
-                    engine.deferExercise()
-                } label: {
-                    Label("Later", systemImage: "clock.badge")
-                        .font(.subheadline)
-                        .frame(maxWidth: .infinity)
-                        .padding(.vertical, 12)
-                        .background(secondaryButtonBg)
-                        .foregroundStyle(secondaryButtonFg)
-                        .clipShape(RoundedRectangle(cornerRadius: 10))
-                }
+            Button {
+                engine.deferExercise()
+            } label: {
+                Label("Push Movement", systemImage: "arrow.uturn.right")
+                    .font(.subheadline)
+                    .frame(maxWidth: .infinity)
+                    .padding(.vertical, 12)
+                    .background(secondaryButtonBg)
+                    .foregroundStyle(secondaryButtonFg)
+                    .clipShape(RoundedRectangle(cornerRadius: 10))
             }
         }
     }
 }
 
-// MARK: - DeferredQueueSheet
+// MARK: - WorkoutFlowSheet
 
-struct DeferredQueueSheet: View {
+struct WorkoutFlowSheet: View {
     @Bindable var engine: WorkoutTimerEngine
     @Environment(\.dismiss) private var dismiss
     @Environment(\.dsTheme) private var theme
 
+    private var firstMovableIndex: Int {
+        engine.currentEntryIndex + 1
+    }
+
     var body: some View {
         NavigationStack {
             List {
-                ForEach(Array(engine.deferredQueue.enumerated()), id: \.element.id) { index, entry in
-                    HStack {
-                        VStack(alignment: .leading, spacing: 4) {
-                            Text(entry.exerciseName)
-                                .font(.headline)
+                ForEach(engine.flowEntries, id: \.id) { entry in
+                    let status = engine.statusFor(entry)
 
-                            Text("\(entry.sets) × \(entry.displayConfiguration)")
-                                .font(.caption)
-                                .foregroundStyle(theme.textSecondary)
-                        }
-
-                        Spacer()
-
-                        Button {
-                            engine.insertDeferred(at: index)
-                            if engine.deferredQueue.isEmpty {
-                                dismiss()
-                            }
-                        } label: {
-                            Text("Insert Next")
-                                .font(.caption)
-                                .fontWeight(.semibold)
-                                .padding(.horizontal, 12)
-                                .padding(.vertical, 6)
-                                .background(theme.primary)
-                                .foregroundStyle(theme.textOnPrimary)
-                                .clipShape(Capsule())
-                        }
-                    }
+                    WorkoutFlowRow(
+                        entry: entry,
+                        status: status,
+                        isPushed: engine.deferredEntryIDs.contains(entry.id)
+                    )
+                    .listRowSeparator(.hidden)
+                    .listRowInsets(EdgeInsets(top: 4, leading: 16, bottom: 4, trailing: 4))
+                    .listRowBackground(
+                        RoundedRectangle(cornerRadius: 12)
+                            .fill(rowBackground(for: status))
+                            .padding(.vertical, 2)
+                    )
+                    .moveDisabled(status == .completed || status == .active || status == .skipped)
+                }
+                .onMove { source, destination in
+                    engine.moveFlowEntry(from: source, to: destination)
                 }
             }
-            .navigationTitle("Deferred Exercises")
+            .listStyle(.plain)
+            .environment(\.editMode, .constant(.active))
+            .background(theme.background)
+            .scrollContentBackground(.hidden)
+            .tint(theme.textTertiary)
+            .navigationTitle("Workout Flow")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
-                ToolbarItem(placement: .cancellationAction) {
+                ToolbarItem(placement: .confirmationAction) {
                     Button("Done") {
                         dismiss()
                     }
                 }
             }
-            .overlay {
-                if engine.deferredQueue.isEmpty {
-                    ContentUnavailableView(
-                        "No Deferred Exercises",
-                        systemImage: "checkmark.circle",
-                        description: Text("All exercises completed!")
-                    )
-                }
+        }
+    }
+
+    private func rowBackground(for status: WorkoutTimerEngine.EntryStatus) -> Color {
+        switch status {
+        case .active: return theme.primary.opacity(0.1)
+        case .skipped: return theme.surfaceElevated.opacity(0.5)
+        default: return theme.surfaceElevated
+        }
+    }
+}
+
+struct WorkoutFlowRow: View {
+    let entry: WorkoutEntry
+    let status: WorkoutTimerEngine.EntryStatus
+    let isPushed: Bool
+    @Environment(\.dsTheme) private var theme
+
+    var body: some View {
+        HStack(spacing: 12) {
+            // Status icon
+            statusIcon
+                .frame(width: 24)
+
+            VStack(alignment: .leading, spacing: 3) {
+                Text(entry.exerciseName)
+                    .font(.subheadline)
+                    .fontWeight(status == .active ? .bold : .medium)
+                    .foregroundStyle(textColor)
+
+                Text(entry.displayConfiguration)
+                    .font(.caption)
+                    .foregroundStyle(subtextColor)
             }
+
+            Spacer()
+
+            // Status badge
+            if isPushed {
+                Text("Pushed")
+                    .font(.caption2)
+                    .fontWeight(.semibold)
+                    .padding(.horizontal, 8)
+                    .padding(.vertical, 3)
+                    .background(theme.warning.opacity(0.15))
+                    .foregroundStyle(theme.warning)
+                    .clipShape(Capsule())
+            } else if status == .skipped {
+                Text("Skipped")
+                    .font(.caption2)
+                    .fontWeight(.semibold)
+                    .padding(.horizontal, 8)
+                    .padding(.vertical, 3)
+                    .background(theme.secondary.opacity(0.15))
+                    .foregroundStyle(theme.textTertiary)
+                    .clipShape(Capsule())
+            } else if status == .active {
+                Text("Now")
+                    .font(.caption2)
+                    .fontWeight(.bold)
+                    .padding(.horizontal, 8)
+                    .padding(.vertical, 3)
+                    .background(theme.primary.opacity(0.15))
+                    .foregroundStyle(theme.primary)
+                    .clipShape(Capsule())
+            }
+        }
+        .padding(.horizontal, 8)
+        .padding(.vertical, 4)
+    }
+
+    private var textColor: Color {
+        switch status {
+        case .completed: return theme.textSecondary
+        case .active: return theme.textPrimary
+        case .upcoming: return theme.textPrimary
+        case .skipped: return theme.textDisabled
+        case .deferred: return theme.textPrimary
+        }
+    }
+
+    private var subtextColor: Color {
+        switch status {
+        case .skipped: return theme.textDisabled
+        default: return theme.textTertiary
+        }
+    }
+
+    @ViewBuilder
+    private var statusIcon: some View {
+        switch status {
+        case .completed:
+            Image(systemName: "checkmark.circle.fill")
+                .foregroundStyle(theme.success)
+        case .active:
+            Image(systemName: "play.circle.fill")
+                .foregroundStyle(theme.primary)
+        case .upcoming:
+            Image(systemName: "circle")
+                .foregroundStyle(theme.textTertiary)
+        case .skipped:
+            Image(systemName: "forward.circle.fill")
+                .foregroundStyle(theme.textDisabled)
+        case .deferred:
+            Image(systemName: "circle")
+                .foregroundStyle(theme.textTertiary)
         }
     }
 }
@@ -736,7 +816,7 @@ struct WorkoutCompleteView: View {
                     )
                     StatRow(
                         icon: "figure.strengthtraining.traditional",
-                        label: "Exercises",
+                        label: "Movements",
                         value: "\(session.exercisesCompleted) completed"
                     )
                     StatRow(

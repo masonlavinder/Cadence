@@ -25,15 +25,15 @@ struct ContentView: View {
                 ExerciseCatalogView()
             }
             .tabItem {
-                Label("Exercises", systemImage: "figure.strengthtraining.traditional")
+                Label("Movements", systemImage: "figure.strengthtraining.traditional")
             }
 
-            // History Tab
+            // Insights Tab
             NavigationStack {
-                HistoryView()
+                InsightsView()
             }
             .tabItem {
-                Label("History", systemImage: "clock.arrow.circlepath")
+                Label("Insights", systemImage: "chart.bar.fill")
             }
 
             // Coach Tab
@@ -50,42 +50,6 @@ struct ContentView: View {
     }
 }
 
-// MARK: - History View (Placeholder)
-
-struct HistoryView: View {
-    @Environment(SessionStore.self) private var sessionStore
-
-    var body: some View {
-        List {
-            ForEach(sessionStore.recentSessions(limit: 50)) { session in
-                VStack(alignment: .leading, spacing: 4) {
-                    Text(session.workoutName)
-                        .font(.headline)
-
-                    HStack {
-                        Text(session.formattedDuration)
-                        Text("•")
-                        Text("\(Int(session.completionPercentage * 100))% complete")
-                        Text("•")
-                        Text(session.startedAt, style: .date)
-                    }
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-                }
-            }
-        }
-        .navigationTitle("History")
-        .overlay {
-            if sessionStore.recentSessions().isEmpty {
-                ContentUnavailableView(
-                    "No Workouts Yet",
-                    systemImage: "clock.arrow.circlepath",
-                    description: Text("Your completed workouts will appear here")
-                )
-            }
-        }
-    }
-}
 
 #Preview {
     ContentView()

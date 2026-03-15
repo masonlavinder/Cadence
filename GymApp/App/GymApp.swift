@@ -10,6 +10,7 @@ struct CadenceApp: App {
     let exerciseStore: ExerciseStore
     let workoutStore: WorkoutStore
     let sessionStore: SessionStore
+    let healthKitService: HealthKitService
 
     init() {
         // Register all @Model types
@@ -35,6 +36,8 @@ struct CadenceApp: App {
         exerciseStore = ExerciseStore(modelContext: context)
         workoutStore = WorkoutStore(modelContext: context)
         sessionStore = SessionStore(modelContext: context)
+        healthKitService = HealthKitService()
+        sessionStore.healthKitService = healthKitService
 
         // Seed built-in exercises on first launch
         exerciseStore.seedIfNeeded()
@@ -46,8 +49,12 @@ struct CadenceApp: App {
                 .environment(exerciseStore)
                 .environment(workoutStore)
                 .environment(sessionStore)
+                .environment(healthKitService)
                 .dsTheme(.default)
                 .preferredColorScheme(.dark)
+                .task {
+                    await healthKitService.requestAuthorization()
+                }
         }
         .modelContainer(modelContainer)
     }

@@ -46,21 +46,21 @@ struct ExerciseCatalogView: View {
             LazyVStack(spacing: 0) {
                 // Header
                 PageHeaderView(
-                    title: "Exercises",
+                    title: "Movements",
                     buttonLabel: "New",
                     buttonIcon: "plus.circle.fill",
                     onButtonTap: { showingNewExercise = true },
                     searchText: $searchText,
-                    searchPrompt: "Search exercises...",
+                    searchPrompt: "Search movements...",
                     filters: { exerciseFilters }
                 )
 
                 // Exercise List
                 if filteredExercises.isEmpty {
                     ContentUnavailableView(
-                        searchText.isEmpty ? "No Exercises" : "No Results",
+                        searchText.isEmpty ? "No Movements" : "No Results",
                         systemImage: "figure.strengthtraining.traditional",
-                        description: Text(searchText.isEmpty ? "Add exercises to your catalog" : "Try a different search")
+                        description: Text(searchText.isEmpty ? "Add movements to your catalog" : "Try a different search")
                     )
                     .padding(.top, 60)
                 } else {
@@ -317,7 +317,7 @@ struct ExerciseDetailView: View {
                 }
             }
         }
-        .navigationTitle("Exercise Details")
+        .navigationTitle("Movement Details")
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {
             ToolbarItem(placement: .primaryAction) {

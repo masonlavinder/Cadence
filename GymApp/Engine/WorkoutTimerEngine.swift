@@ -1,5 +1,6 @@
 import Foundation
 import Combine
+import SwiftUI
 
 // MARK: - WorkoutTimerEngine
 
@@ -35,6 +36,37 @@ final class WorkoutTimerEngine {
     private(set) var totalElapsedSeconds: Int = 0
 
     private(set) var deferredQueue: [WorkoutEntry] = []
+
+    // MARK: - Entry Status Tracking
+
+    enum EntryStatus {
+        case completed
+        case active
+        case upcoming
+        case skipped
+        case deferred
+    }
+
+    /// The live ordered list of entries including pushed movements repositioned at the end.
+    var flowEntries: [WorkoutEntry] {
+        var result = entries
+        result.append(contentsOf: deferredQueue)
+        return result
+    }
+    /// IDs of completed entries.
+    private(set) var completedEntryIDs: Set<UUID> = []
+    /// IDs of skipped entries.
+    private(set) var skippedEntryIDs: Set<UUID> = []
+    /// IDs of currently deferred entries.
+    private(set) var deferredEntryIDs: Set<UUID> = []
+
+    func statusFor(_ entry: WorkoutEntry) -> EntryStatus {
+        if completedEntryIDs.contains(entry.id) { return .completed }
+        if skippedEntryIDs.contains(entry.id) { return .skipped }
+        if deferredEntryIDs.contains(entry.id) { return .deferred }
+        if entry.id == currentEntry?.id { return .active }
+        return .upcoming
+    }
 
     // MARK: - Workout Data
 
@@ -86,6 +118,9 @@ final class WorkoutTimerEngine {
         completedEntryCount = 0
         skippedEntryCount = 0
         deferredQueue = []
+        completedEntryIDs = []
+        skippedEntryIDs = []
+        deferredEntryIDs = []
         totalEstimatedWorkoutSeconds = entries.reduce(0) { $0 + $1.totalEstimatedSeconds }
 
         guard !entries.isEmpty else {
@@ -145,6 +180,7 @@ final class WorkoutTimerEngine {
             } else {
                 // All sets done for this entry
                 completedEntryCount += 1
+                if let entry = currentEntry { completedEntryIDs.insert(entry.id) }
                 advanceToNextEntry()
             }
 
@@ -232,6 +268,9 @@ final class WorkoutTimerEngine {
     }
 
     private func appendDeferredEntries() {
+        for entry in deferredQueue {
+            deferredEntryIDs.remove(entry.id)
+        }
         entries.append(contentsOf: deferredQueue)
         deferredQueue.removeAll()
         beginCurrentEntry()
@@ -277,18 +316,21 @@ final class WorkoutTimerEngine {
             }
         } else {
             // All sets done
+            if let entry = currentEntry { completedEntryIDs.insert(entry.id) }
             advanceToNextEntry()
         }
     }
 
     func skipExercise() {
         guard currentEntryIndex < entries.count else { return }
+        if let entry = currentEntry { skippedEntryIDs.insert(entry.id) }
         skippedEntryCount += 1
         advanceToNextEntry()
     }
 
     func deferExercise() {
         guard let entry = currentEntry, currentEntryIndex < entries.count else { return }
+        deferredEntryIDs.insert(entry.id)
         deferredQueue.append(entry)
         entries.remove(at: currentEntryIndex)
 
@@ -309,7 +351,42 @@ final class WorkoutTimerEngine {
     func insertDeferred(at index: Int) {
         guard index < deferredQueue.count else { return }
         let entry = deferredQueue.remove(at: index)
+        deferredEntryIDs.remove(entry.id)
         entries.insert(entry, at: currentEntryIndex + 1)
+    }
+
+    /// Reorder upcoming entries (everything after the current entry + deferred queue).
+    /// `from` and `to` are indices into `flowEntries`, but only moves within
+    /// the upcoming region (index > currentEntryIndex) are allowed.
+    func moveFlowEntry(from source: IndexSet, to destination: Int) {
+        // Build the full mutable flow list
+        var flow = entries
+        flow.append(contentsOf: deferredQueue)
+
+        // The first movable index is currentEntryIndex + 1
+        let firstMovable = currentEntryIndex + 1
+
+        // Only allow moves within the upcoming region
+        for idx in source {
+            guard idx >= firstMovable else { return }
+        }
+        let clampedDestination = max(firstMovable, destination)
+
+        flow.move(fromOffsets: source, toOffset: clampedDestination)
+
+        // Split back into entries and deferredQueue
+        // entries = everything up to entries.count, deferredQueue = the rest
+        // But since deferred items may have been interleaved, we rebuild:
+        // Keep the first `currentEntryIndex + 1` entries as-is (completed/active),
+        // then the rest become the new upcoming entries list.
+        let entriesCount = entries.count
+        let totalCount = flow.count
+
+        entries = Array(flow.prefix(entriesCount))
+        deferredQueue = Array(flow.suffix(totalCount - entriesCount))
+
+        // Update deferred tracking — anything in deferredQueue is deferred
+        deferredEntryIDs = Set(deferredQueue.map(\.id))
     }
 
     func endWorkout() {
