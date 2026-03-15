@@ -9,7 +9,10 @@ import SwiftData
 @Observable
 final class WorkoutStore {
     private let modelContext: ModelContext
-    
+
+    /// Revision counter — bumped on every write so SwiftUI re-evaluates queries
+    private(set) var revision: Int = 0
+
     init(modelContext: ModelContext) {
         self.modelContext = modelContext
     }
@@ -202,6 +205,7 @@ final class WorkoutStore {
     private func save() {
         do {
             try modelContext.save()
+            revision += 1
         } catch {
             print("Error saving WorkoutStore context: \(error)")
         }

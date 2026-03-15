@@ -23,9 +23,20 @@ struct WorkoutEditorView: View {
     @State private var createdWorkout: Workout?
     
     // UI State
-    @State private var showingExercisePicker = false
-    @State private var editingEntry: WorkoutEntry?
-    @State private var showingEntryEditor = false
+    @State private var sheetType: SheetType?
+    @State private var showingActiveWorkout = false
+    
+    enum SheetType: Identifiable {
+        case exercisePicker
+        case entryEditor(WorkoutEntry)
+        
+        var id: String {
+            switch self {
+            case .exercisePicker: return "picker"
+            case .entryEditor(let entry): return "editor-\(entry.id)"
+            }
+        }
+    }
     
     init(workout: Workout?) {
         self.workout = workout
@@ -101,7 +112,7 @@ struct WorkoutEditorView: View {
                 }
                 
                 LazyVGrid(columns: [GridItem(.adaptive(minimum: 100))], spacing: 8) {
-                    ForEach([Equipment.none, .barbell, .dumbbell, .kettlebell, .resistanceBand, .yogaMat, .pullupBar, .benchPress], id: \.self) { equip in
+                    ForEach([Equipment.none, .barbell, .dumbbell, .kettlebell, .resistanceBand, .yogaMat, .pullUpBar, .bench], id: \.self) { equip in
                         EquipmentChip(
                             equipment: equip,
                             isSelected: requiredEquipment.contains(equip)
@@ -122,17 +133,14 @@ struct WorkoutEditorView: View {
                 if let activeWorkout = activeWorkout, !activeWorkout.entries.isEmpty {
                     ForEach(activeWorkout.entries.sorted(by: { $0.orderIndex < $1.orderIndex })) { entry in
                         EntryEditorRow(entry: entry) {
-                            editingEntry = entry
-                            showingEntryEditor = true
+                            sheetType = .entryEditor(entry)
                         }
                     }
                     .onDelete { indexSet in
                         deleteEntries(at: indexSet)
                     }
                     .onMove { source, destination in
-                        if let activeWorkout = activeWorkout {
-                            workoutStore.moveEntry(in: activeWorkout, from: source, to: destination)
-                        }
+                        workoutStore.moveEntry(in: activeWorkout, from: source, to: destination)
                     }
                 } else {
                     ContentUnavailableView(
@@ -147,11 +155,31 @@ struct WorkoutEditorView: View {
                     Spacer()
                     Button {
                         ensureWorkoutExists()
-                        showingExercisePicker = true
+                        sheetType = .exercisePicker
                     } label: {
                         Label("Add Exercise", systemImage: "plus.circle.fill")
                             .font(.subheadline)
                     }
+                }
+            }
+
+            // Start Workout Button
+            if let activeWorkout = activeWorkout, !activeWorkout.entries.isEmpty {
+                Section {
+                    Button {
+                        saveWorkout()
+                        showingActiveWorkout = true
+                    } label: {
+                        HStack {
+                            Spacer()
+                            Label("Start Workout", systemImage: "play.fill")
+                                .font(.headline)
+                            Spacer()
+                        }
+                        .padding(.vertical, 4)
+                    }
+                    .foregroundStyle(.white)
+                    .listRowBackground(Color.accentColor)
                 }
             }
         }
@@ -176,23 +204,29 @@ struct WorkoutEditorView: View {
                 EditButton()
             }
         }
-        .sheet(isPresented: $showingExercisePicker) {
-            NavigationStack {
-                ExercisePickerView { exercise in
-                    addExercise(exercise)
+        .sheet(item: $sheetType) { type in
+            switch type {
+            case .exercisePicker:
+                NavigationStack {
+                    ExercisePickerView(onSelect: { exercise in
+                        addExercise(exercise)
+                    })
+                }
+            case .entryEditor(let entry):
+                NavigationStack {
+                    EntryEditorSheet(entry: entry)
                 }
             }
         }
-        .sheet(item: $editingEntry) { entry in
-            NavigationStack {
-                EntryEditorSheet(entry: entry) {
-                    showingEntryEditor = false
-                    editingEntry = nil
+        .fullScreenCover(isPresented: $showingActiveWorkout) {
+            if let activeWorkout = activeWorkout {
+                NavigationStack {
+                    ActiveWorkoutView(workout: activeWorkout)
                 }
             }
         }
     }
-    
+
     // MARK: - Actions
     
     private func ensureWorkoutExists() {
@@ -484,7 +518,7 @@ struct ExercisePickerRow: View {
             Spacer()
             
             Image(systemName: "plus.circle.fill")
-                .foregroundStyle(.accentColor)
+                .foregroundStyle(Color.accentColor)
         }
     }
     
@@ -494,12 +528,12 @@ struct ExercisePickerRow: View {
         case .cardio: return "figure.run"
         case .flexibility: return "figure.cooldown"
         case .balance: return "figure.mind.and.body"
-        case .plyometrics: return "figure.jumprope"
-        case .yoga: return "figure.yoga"
-        case .pilates: return "figure.pilates"
-        case .calisthenics: return "figure.strengthtraining.traditional"
-        case .sport: return "sportscourt"
-        case .rehabilitation: return "heart.text.square"
+        case .plyometric: return "figure.jumprope"
+        case .isometric: return "timer"
+        case .pose: return "figure.yoga"
+        case .interval: return "stopwatch.fill"
+        case .distance: return "figure.walk"
+        case .breathwork: return "wind"
         }
     }
     
@@ -509,12 +543,12 @@ struct ExercisePickerRow: View {
         case .cardio: return .red
         case .flexibility: return .green
         case .balance: return .purple
-        case .plyometrics: return .orange
-        case .yoga: return .pink
-        case .pilates: return .teal
-        case .calisthenics: return .cyan
-        case .sport: return .indigo
-        case .rehabilitation: return .mint
+        case .plyometric: return .orange
+        case .isometric: return .gray
+        case .pose: return .pink
+        case .interval: return .orange
+        case .distance: return .cyan
+        case .breathwork: return .mint
         }
     }
 }
@@ -524,7 +558,6 @@ struct ExercisePickerRow: View {
 struct EntryEditorSheet: View {
     @Environment(\.dismiss) private var dismiss
     let entry: WorkoutEntry
-    let onSave: () -> Void
     
     @State private var sets: Int
     @State private var targetReps: Int
@@ -533,9 +566,8 @@ struct EntryEditorSheet: View {
     @State private var restAfterExercise: Int
     @State private var notes: String
     
-    init(entry: WorkoutEntry, onSave: @escaping () -> Void) {
+    init(entry: WorkoutEntry) {
         self.entry = entry
-        self.onSave = onSave
         
         _sets = State(initialValue: entry.sets)
         _targetReps = State(initialValue: entry.targetReps ?? 10)
@@ -584,7 +616,6 @@ struct EntryEditorSheet: View {
             ToolbarItem(placement: .confirmationAction) {
                 Button("Save") {
                     saveChanges()
-                    onSave()
                     dismiss()
                 }
             }

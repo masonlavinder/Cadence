@@ -14,10 +14,10 @@ struct ContentView: View {
         TabView {
             // Workout Library Tab
             NavigationStack {
-                LibraryView()
+                WorkoutsView()
             }
             .tabItem {
-                Label("Library", systemImage: "list.bullet.rectangle.portrait")
+                Label("Workouts", systemImage: "dumbbell")
             }
             
             // Exercise Catalog Tab

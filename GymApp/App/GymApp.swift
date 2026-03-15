@@ -35,8 +35,9 @@ struct GymApp: App {
         exerciseStore = ExerciseStore(modelContext: context)
         workoutStore = WorkoutStore(modelContext: context)
         sessionStore = SessionStore(modelContext: context)
-        
-        // TODO Phase 7: Check for first launch and seed exercises
+
+        // Seed built-in exercises on first launch
+        exerciseStore.seedIfNeeded()
     }
     
     var body: some Scene {

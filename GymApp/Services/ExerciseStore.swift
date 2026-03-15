@@ -149,13 +149,97 @@ final class ExerciseStore {
     }
     
     // MARK: - Helpers
-    
+
     /// Increment usage count when exercise is added to a workout
     func incrementUsage(_ exercise: Exercise) {
         exercise.timesUsed += 1
         update(exercise)
     }
-    
+
+    // MARK: - Seeding
+
+    /// Seed the catalog with built-in exercises on first launch
+    func seedIfNeeded() {
+        guard all().isEmpty else { return }
+
+        let defaults: [(String, String, ExerciseType, [MuscleGroup], [MuscleGroup], Equipment, BlockType, MovementPattern?)] = [
+            // Bodyweight
+            ("Push-ups", "Classic upper body push exercise", .strength, [.chest, .triceps], [.shoulders, .core], .none, .repBased, .push),
+            ("Squats", "Fundamental lower body exercise", .strength, [.quads, .glutes], [.hamstrings, .core], .none, .repBased, .squat),
+            ("Lunges", "Unilateral leg exercise", .strength, [.quads, .glutes], [.hamstrings], .none, .repBased, .squat),
+            ("Plank", "Core stabilization hold", .isometric, [.core], [.shoulders], .none, .timed, nil),
+            ("Burpees", "Full body explosive movement", .plyometric, [.fullBody], [], .none, .repBased, nil),
+            ("Mountain Climbers", "Dynamic core and cardio drill", .cardio, [.core, .quads], [], .none, .timed, nil),
+            ("Jumping Jacks", "Full body warm-up cardio", .cardio, [.fullBody], [], .none, .timed, nil),
+            ("Glute Bridges", "Hip extension exercise", .strength, [.glutes, .hamstrings], [.core], .none, .repBased, .hinge),
+            ("Tricep Dips", "Bodyweight tricep exercise", .strength, [.triceps], [.chest, .shoulders], .none, .repBased, .push),
+            ("Superman Hold", "Lower back and glute hold", .isometric, [.back, .glutes], [], .none, .timed, nil),
+            ("Bicycle Crunches", "Rotational core exercise", .strength, [.core], [], .none, .repBased, .rotate),
+            ("High Knees", "Cardio sprint drill", .cardio, [.quads, .core], [], .none, .timed, .run),
+            ("Wall Sit", "Isometric quad hold", .isometric, [.quads, .glutes], [], .none, .timed, nil),
+            ("Calf Raises", "Calf isolation exercise", .strength, [.calves], [], .none, .repBased, nil),
+            ("Side Plank", "Oblique stabilization hold", .isometric, [.core], [.shoulders], .none, .timed, nil),
+
+            // Barbell
+            ("Bench Press", "Primary chest compound lift", .strength, [.chest, .triceps], [.shoulders], .barbell, .repBased, .push),
+            ("Barbell Squat", "King of lower body exercises", .strength, [.quads, .glutes], [.hamstrings, .core], .barbell, .repBased, .squat),
+            ("Deadlift", "Full posterior chain compound lift", .strength, [.hamstrings, .back, .glutes], [.core, .forearms], .barbell, .repBased, .hinge),
+            ("Overhead Press", "Standing shoulder press", .strength, [.shoulders, .triceps], [.core], .barbell, .repBased, .push),
+            ("Barbell Row", "Horizontal pull for back thickness", .strength, [.back, .biceps], [.forearms], .barbell, .repBased, .pull),
+            ("Romanian Deadlift", "Hamstring-focused hip hinge", .strength, [.hamstrings, .glutes], [.back], .barbell, .repBased, .hinge),
+
+            // Dumbbell
+            ("Dumbbell Curl", "Bicep isolation exercise", .strength, [.biceps], [.forearms], .dumbbell, .repBased, .pull),
+            ("Dumbbell Lateral Raise", "Shoulder isolation for side delts", .strength, [.shoulders], [], .dumbbell, .repBased, nil),
+            ("Dumbbell Fly", "Chest isolation exercise", .strength, [.chest], [.shoulders], .dumbbell, .repBased, nil),
+            ("Dumbbell Shoulder Press", "Seated or standing shoulder press", .strength, [.shoulders, .triceps], [], .dumbbell, .repBased, .push),
+            ("Dumbbell Lunge", "Weighted unilateral leg exercise", .strength, [.quads, .glutes], [.hamstrings], .dumbbell, .repBased, .squat),
+
+            // Kettlebell
+            ("Goblet Squat", "Front-loaded squat variation", .strength, [.quads, .glutes], [.core], .kettlebell, .repBased, .squat),
+            ("Kettlebell Swing", "Explosive hip hinge movement", .plyometric, [.glutes, .hamstrings], [.core, .shoulders], .kettlebell, .repBased, .hinge),
+
+            // Pull-up bar
+            ("Pull-ups", "Vertical pull for back width", .strength, [.back, .biceps], [.forearms, .core], .pullUpBar, .repBased, .pull),
+            ("Chin-ups", "Supinated grip vertical pull", .strength, [.biceps, .back], [.forearms], .pullUpBar, .repBased, .pull),
+
+            // Cable
+            ("Cable Fly", "Chest isolation with constant tension", .strength, [.chest], [.shoulders], .cableMachine, .repBased, nil),
+            ("Lat Pulldown", "Vertical pull machine exercise", .strength, [.back, .biceps], [], .cableMachine, .repBased, .pull),
+            ("Tricep Pushdown", "Cable tricep isolation", .strength, [.triceps], [], .cableMachine, .repBased, .push),
+            ("Face Pull", "Rear delt and upper back exercise", .strength, [.shoulders, .back], [.rhomboids, .traps], .cableMachine, .repBased, .pull),
+
+            // Yoga / Flexibility
+            ("Downward Dog", "Foundational yoga inversion", .pose, [.hamstrings, .shoulders], [.calves], .yogaMat, .timed, .hold),
+            ("Warrior II", "Standing hip opener and leg strengthener", .pose, [.quads, .shoulders], [.core], .yogaMat, .timed, .hold),
+            ("Child's Pose", "Resting stretch for back and hips", .flexibility, [.back], [.hipFlexors], .yogaMat, .timed, .stretch),
+            ("Pigeon Pose", "Deep hip flexor and glute stretch", .flexibility, [.hipFlexors, .glutes], [], .yogaMat, .timed, .hold),
+
+            // Cardio machines
+            ("Treadmill Run", "Steady-state or interval running", .cardio, [.quads, .hamstrings], [.calves, .core], .treadmill, .timed, .run),
+            ("Rowing Machine", "Full body cardio pull", .cardio, [.back, .quads], [.biceps, .core], .rower, .timed, .row),
+        ]
+
+        for (name, desc, type, primary, secondary, equipment, blockType, pattern) in defaults {
+            let exercise = Exercise(
+                name: name,
+                description: desc,
+                exerciseType: type,
+                primaryMuscleGroups: primary,
+                secondaryMuscleGroups: secondary,
+                equipment: equipment,
+                movementPattern: pattern,
+                defaultBlockType: blockType,
+                defaultSets: blockType == .timed ? 3 : 3,
+                defaultRepCount: blockType == .repBased ? 10 : nil,
+                defaultDurationSeconds: blockType == .timed ? 45 : nil,
+                isCustom: false
+            )
+            modelContext.insert(exercise)
+        }
+        save()
+    }
+
     /// Save changes to model context
     private func save() {
         do {

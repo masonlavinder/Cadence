@@ -1,18 +1,8 @@
 import Foundation
-import AVFoundation
+import Combine
 
 // MARK: - WorkoutTimerEngine
-// TODO Phase 3: Implement the full workout runtime state machine
-// This is a @MainActor @Observable class that manages:
-// - 5 states: idle, running, paused, waitingForUser, finishing
-// - 4 phases: exercise, restBetweenSets, restAfterBlock, waitingForUser
-// - Actions: start, pause, resume, skip, defer, markDone, extendRest, endWorkout
-// - Deferred queue management
-// - Callbacks for transitions and countdown events
-// - Timer using Timer.publish(every: 1.0)
 
-/// Placeholder for WorkoutTimerEngine
-/// See Phase 3 in GymApp-ClaudeCode-Plan.md for full implementation details
 @MainActor
 @Observable
 final class WorkoutTimerEngine {
@@ -34,7 +24,7 @@ final class WorkoutTimerEngine {
         case waitingForUser
     }
 
-    // MARK: - Published Properties
+    // MARK: - Observable Properties
 
     private(set) var state: State = .idle
     private(set) var phase: Phase = .exercise
@@ -49,6 +39,8 @@ final class WorkoutTimerEngine {
     // MARK: - Workout Data
 
     private var entries: [WorkoutEntry] = []
+    private var completedEntryCount: Int = 0
+    private var skippedEntryCount: Int = 0
 
     var currentEntry: WorkoutEntry? {
         guard currentEntryIndex < entries.count else { return nil }
@@ -60,8 +52,13 @@ final class WorkoutTimerEngine {
     }
 
     var completionPercentage: Double {
-        guard !entries.isEmpty else { return 0 }
-        return Double(currentEntryIndex) / Double(entries.count)
+        let total = entries.count + deferredQueue.count
+        guard total > 0 else { return 0 }
+        return Double(completedEntryCount) / Double(total)
+    }
+
+    var totalEntryCount: Int {
+        entries.count + deferredQueue.count
     }
 
     // MARK: - Callbacks
@@ -72,39 +69,229 @@ final class WorkoutTimerEngine {
 
     private var timer: Timer?
 
-    // MARK: - Actions (TODO: Implement in Phase 3)
+    // MARK: - Start
 
     func start(workout: Workout) {
         entries = workout.entries.sorted { $0.orderIndex < $1.orderIndex }
         currentEntryIndex = 0
         currentSet = 1
         totalElapsedSeconds = 0
+        completedEntryCount = 0
+        skippedEntryCount = 0
         deferredQueue = []
-        state = .running
-        phase = .exercise
-        secondsRemaining = currentEntry?.estimatedDurationPerSetSeconds ?? 0
-        // TODO: start timer
+
+        guard !entries.isEmpty else {
+            state = .finishing
+            return
+        }
+
+        beginCurrentEntry()
+        startTimer()
     }
 
-    func togglePause() {
-        if state == .paused {
-            state = .running
-        } else if state == .running {
-            state = .paused
+    // MARK: - Timer Management
+
+    private func startTimer() {
+        timer?.invalidate()
+        timer = Timer.scheduledTimer(withTimeInterval: 1.0, repeats: true) { [weak self] _ in
+            Task { @MainActor in
+                self?.tick()
+            }
         }
-        // TODO: pause/resume timer
+    }
+
+    private func tick() {
+        guard state == .running || state == .waitingForUser else { return }
+
+        totalElapsedSeconds += 1
+
+        // waitingForUser doesn't count down — user must tap Done
+        guard state == .running else { return }
+
+        if secondsRemaining > 0 {
+            secondsRemaining -= 1
+        }
+
+        if secondsRemaining == 0 {
+            phaseCompleted()
+        }
+    }
+
+    // MARK: - Phase Transitions
+
+    private func phaseCompleted() {
+        guard let entry = currentEntry else { return }
+
+        switch phase {
+        case .exercise:
+            // Finished one set
+            if currentSet < entry.sets {
+                // More sets remain — rest between sets
+                phase = .restBetweenSets
+                secondsRemaining = entry.restBetweenSetsSeconds
+                if secondsRemaining == 0 {
+                    // No rest configured, go straight to next set
+                    currentSet += 1
+                    beginExercisePhase()
+                }
+            } else {
+                // All sets done for this entry
+                completedEntryCount += 1
+                advanceToNextEntry()
+            }
+
+        case .restBetweenSets:
+            // Rest done — start next set
+            currentSet += 1
+            beginExercisePhase()
+
+        case .restAfterBlock:
+            // Rest done — start next exercise
+            beginCurrentEntry()
+
+        case .waitingForUser:
+            // Handled by markCurrentDone()
+            break
+        }
+    }
+
+    private func beginCurrentEntry() {
+        guard let entry = currentEntry else {
+            finishWorkout()
+            return
+        }
+
+        currentSet = 1
+
+        // Untimed exercises wait for user input
+        if entry.blockType == .untimed {
+            phase = .waitingForUser
+            state = .waitingForUser
+            secondsRemaining = 0
+        } else {
+            beginExercisePhase()
+        }
+    }
+
+    private func beginExercisePhase() {
+        guard let entry = currentEntry else { return }
+        phase = .exercise
+        state = .running
+
+        switch entry.blockType {
+        case .repBased:
+            // Estimate ~3 seconds per rep
+            secondsRemaining = (entry.targetReps ?? 10) * 3
+        case .timed:
+            secondsRemaining = entry.durationSeconds ?? 45
+        case .untimed:
+            // Should not reach here — handled by beginCurrentEntry
+            phase = .waitingForUser
+            state = .waitingForUser
+            secondsRemaining = 0
+        case .distance:
+            secondsRemaining = entry.estimatedDurationPerSetSeconds
+        }
+    }
+
+    private func advanceToNextEntry() {
+        guard let entry = currentEntry else {
+            finishWorkout()
+            return
+        }
+
+        let restAfter = entry.restAfterExerciseSeconds
+        currentEntryIndex += 1
+
+        // Check if there are more entries
+        guard currentEntryIndex < entries.count else {
+            // No more regular entries — check deferred queue
+            if !deferredQueue.isEmpty {
+                appendDeferredEntries()
+            } else {
+                finishWorkout()
+            }
+            return
+        }
+
+        if restAfter > 0 {
+            phase = .restAfterBlock
+            state = .running
+            secondsRemaining = restAfter
+        } else {
+            beginCurrentEntry()
+        }
+    }
+
+    private func appendDeferredEntries() {
+        entries.append(contentsOf: deferredQueue)
+        deferredQueue.removeAll()
+        beginCurrentEntry()
+    }
+
+    private func finishWorkout() {
+        state = .finishing
+        phase = .exercise
+        timer?.invalidate()
+        timer = nil
+        onWorkoutComplete?(nil)
+    }
+
+    // MARK: - User Actions
+
+    func togglePause() {
+        switch state {
+        case .running:
+            state = .paused
+        case .paused:
+            state = .running
+        default:
+            break
+        }
     }
 
     func markCurrentDone() {
-        // TODO: Implement in Phase 3
+        guard state == .waitingForUser else { return }
+
+        completedEntryCount += 1
+
+        if currentSet < (currentEntry?.sets ?? 1) {
+            // More sets — rest between sets
+            currentSet += 1
+            if let entry = currentEntry, entry.restBetweenSetsSeconds > 0 {
+                phase = .restBetweenSets
+                state = .running
+                secondsRemaining = entry.restBetweenSetsSeconds
+            } else {
+                // No rest, stay in waitingForUser for next set
+                // (completedEntryCount was already incremented above, undo for mid-entry)
+                completedEntryCount -= 1
+            }
+        } else {
+            // All sets done
+            advanceToNextEntry()
+        }
     }
 
     func skipExercise() {
-        // TODO: Implement in Phase 3
+        guard currentEntryIndex < entries.count else { return }
+        skippedEntryCount += 1
+        advanceToNextEntry()
     }
 
     func deferExercise() {
-        // TODO: Implement in Phase 3
+        guard let entry = currentEntry, currentEntryIndex < entries.count else { return }
+        deferredQueue.append(entry)
+        entries.remove(at: currentEntryIndex)
+
+        // Don't increment currentEntryIndex — next entry is now at the same index
+        if currentEntryIndex < entries.count {
+            beginCurrentEntry()
+        } else if !deferredQueue.isEmpty {
+            appendDeferredEntries()
+        } else {
+            finishWorkout()
+        }
     }
 
     func extendRest(bySeconds seconds: Int) {

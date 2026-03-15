@@ -151,7 +151,7 @@ struct ExerciseCatalogView: View {
         }
         .sheet(isPresented: $showingNewExercise) {
             NavigationStack {
-                Text("New Exercise Form - TODO")
+                ExerciseCreatorView()
             }
         }
     }
@@ -252,7 +252,8 @@ struct ExerciseRow: View {
 struct ExerciseDetailView: View {
     let exercise: Exercise
     @Environment(ExerciseStore.self) private var exerciseStore
-    
+    @State private var showingEditor = false
+
     var body: some View {
         List {
             Section {
@@ -323,6 +324,20 @@ struct ExerciseDetailView: View {
         }
         .navigationTitle("Exercise Details")
         .navigationBarTitleDisplayMode(.inline)
+        .toolbar {
+            ToolbarItem(placement: .primaryAction) {
+                Button {
+                    showingEditor = true
+                } label: {
+                    Label("Edit", systemImage: "pencil")
+                }
+            }
+        }
+        .sheet(isPresented: $showingEditor) {
+            NavigationStack {
+                ExerciseCreatorView(exercise: exercise)
+            }
+        }
     }
 }
 
