@@ -103,6 +103,7 @@ final class WorkoutTimerEngine {
     // MARK: - Callbacks
 
     var onWorkoutComplete: ((WorkoutSession?) -> Void)?
+    var onTransition: ((TransitionEvent) -> Void)?
 
     // MARK: - Timer
 
@@ -176,6 +177,8 @@ final class WorkoutTimerEngine {
                     // No rest configured, go straight to next set
                     currentSet += 1
                     beginExercisePhase()
+                } else {
+                    onTransition?(.restBetweenSets(seconds: secondsRemaining, nextSet: currentSet + 1, totalSets: entry.sets, exerciseName: entry.exerciseName))
                 }
             } else {
                 // All sets done for this entry
@@ -212,6 +215,7 @@ final class WorkoutTimerEngine {
             phase = .waitingForUser
             state = .waitingForUser
             secondsRemaining = 0
+            onTransition?(.awaitingUserCompletion)
         } else {
             beginExercisePhase()
         }
@@ -221,6 +225,14 @@ final class WorkoutTimerEngine {
         guard let entry = currentEntry else { return }
         phase = .exercise
         state = .running
+        onTransition?(.exerciseStarted(
+            name: entry.exerciseName,
+            cueText: entry.customCueText,
+            set: currentSet,
+            totalSets: entry.sets,
+            isFirstExercise: currentEntryIndex == 0 && currentSet == 1,
+            exercisesRemaining: (entries.count + deferredQueue.count) - currentEntryIndex
+        ))
 
         switch entry.blockType {
         case .repBased:
@@ -262,6 +274,8 @@ final class WorkoutTimerEngine {
             phase = .restAfterBlock
             state = .running
             secondsRemaining = restAfter
+            let nextName = currentEntry?.exerciseName
+            onTransition?(.restAfterExercise(seconds: restAfter, nextExerciseName: nextName))
         } else {
             beginCurrentEntry()
         }
@@ -273,6 +287,7 @@ final class WorkoutTimerEngine {
         }
         entries.append(contentsOf: deferredQueue)
         deferredQueue.removeAll()
+        onTransition?(.deferredRoundStarted)
         beginCurrentEntry()
     }
 
@@ -281,6 +296,7 @@ final class WorkoutTimerEngine {
         phase = .exercise
         timer?.invalidate()
         timer = nil
+        onTransition?(.workoutComplete)
         onWorkoutComplete?(nil)
     }
 
@@ -290,8 +306,10 @@ final class WorkoutTimerEngine {
         switch state {
         case .running:
             state = .paused
+            onTransition?(.paused)
         case .paused:
             state = .running
+            onTransition?(.resumed)
         default:
             break
         }
@@ -323,13 +341,16 @@ final class WorkoutTimerEngine {
 
     func skipExercise() {
         guard currentEntryIndex < entries.count else { return }
+        let name = currentEntry?.exerciseName ?? ""
         if let entry = currentEntry { skippedEntryIDs.insert(entry.id) }
         skippedEntryCount += 1
+        onTransition?(.skipped(exerciseName: name))
         advanceToNextEntry()
     }
 
     func deferExercise() {
         guard let entry = currentEntry, currentEntryIndex < entries.count else { return }
+        onTransition?(.deferred(exerciseName: entry.exerciseName))
         deferredEntryIDs.insert(entry.id)
         deferredQueue.append(entry)
         entries.remove(at: currentEntryIndex)
@@ -346,6 +367,7 @@ final class WorkoutTimerEngine {
 
     func extendRest(bySeconds seconds: Int) {
         secondsRemaining += seconds
+        onTransition?(.restExtended(additionalSeconds: seconds))
     }
 
     func insertDeferred(at index: Int) {
@@ -353,6 +375,7 @@ final class WorkoutTimerEngine {
         let entry = deferredQueue.remove(at: index)
         deferredEntryIDs.remove(entry.id)
         entries.insert(entry, at: currentEntryIndex + 1)
+        onTransition?(.deferredInserted(exerciseName: entry.exerciseName))
     }
 
     /// Reorder upcoming entries (everything after the current entry + deferred queue).
