@@ -142,7 +142,7 @@ struct WorkoutsView: View {
             }
         }
 
-        ForEach(WorkoutCategory.allCases, id: \.self) { category in
+        ForEach([WorkoutCategory.strength, .hiit, .flexibility], id: \.self) { category in
             FilterChip(
                 title: category.rawValue.capitalized,
                 isSelected: selectedCategory == category
