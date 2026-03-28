@@ -45,6 +45,14 @@ struct ContentView: View {
                     Label("Coach", systemImage: "bubble.left.and.text.bubble.right")
                 }
             }
+
+            // Settings Tab
+            NavigationStack {
+                SettingsView()
+            }
+            .tabItem {
+                Label("Settings", systemImage: "gearshape")
+            }
         }
         .toolbarBackground(.ultraThinMaterial, for: .tabBar)
     }

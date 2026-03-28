@@ -15,6 +15,7 @@ struct ActiveWorkoutView: View {
 
     @State private var showingEndConfirmation = false
     @State private var showingDeferredQueue = false
+    @State private var showingVoiceUpgrade = false
 
     // Prep countdown
     @State private var prepCountdown: Int = 10
@@ -132,6 +133,22 @@ struct ActiveWorkoutView: View {
         }
         .sheet(isPresented: $showingDeferredQueue) {
             WorkoutFlowSheet(engine: engine)
+        }
+        .alert(
+            "Improve Voice Quality",
+            isPresented: $showingVoiceUpgrade
+        ) {
+            Button("Open Settings") {
+                AudioCueService.shared.voicePromptDismissed = true
+                if let url = URL(string: "App-prefs:ACCESSIBILITY&path=SPEECH_TITLE") {
+                    UIApplication.shared.open(url)
+                }
+            }
+            Button("Not Now", role: .cancel) {
+                AudioCueService.shared.voicePromptDismissed = true
+            }
+        } message: {
+            Text("Download a higher-quality voice for better coaching audio. Go to Voices → English → Ava or Samantha and tap the download button.")
         }
         .onAppear {
             startPrep()
@@ -464,6 +481,10 @@ struct ActiveWorkoutView: View {
         audioBridge = WorkoutAudioBridge(engine: engine)
         audioBridge?.activate()
         engine.start(workout: workout)
+
+        if AudioCueService.shared.shouldPromptForVoiceUpgrade {
+            showingVoiceUpgrade = true
+        }
 
         engine.onWorkoutComplete = { _ in
             if let session = session {

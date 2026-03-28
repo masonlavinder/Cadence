@@ -13,16 +13,109 @@ final class AudioCueService: NSObject, AVSpeechSynthesizerDelegate {
     private let impactHeavy = UIImpactFeedbackGenerator(style: .heavy)
     private let notification = UINotificationFeedbackGenerator()
 
-    /// Resolved voice — best available female en-US voice
-    private let voice: AVSpeechSynthesisVoice?
+    /// Active voice used for speech
+    private(set) var voice: AVSpeechSynthesisVoice?
+
+    /// True when the resolved voice is low-quality (compact, eloquence, or missing)
+    var needsVoiceUpgrade: Bool {
+        guard let id = voice?.identifier else { return true }
+        return !(id.contains("premium") || id.contains("enhanced") || id.contains("siri"))
+    }
 
     /// Whether the audio session is currently activated for speech
     private var sessionActive = false
 
+    /// UserDefaults key for dismissing the voice upgrade prompt
+    private static let voicePromptDismissedKey = "AudioCueService.voicePromptDismissed"
+    private static let preferredVoiceKey = "AudioCueService.preferredVoiceID"
+    private static let vibrateOnSpeechKey = "AudioCueService.vibrateOnSpeech"
+
+    /// Whether the user has already dismissed the voice upgrade prompt
+    var voicePromptDismissed: Bool {
+        get { UserDefaults.standard.bool(forKey: Self.voicePromptDismissedKey) }
+        set { UserDefaults.standard.set(newValue, forKey: Self.voicePromptDismissedKey) }
+    }
+
+    /// True when we should show the voice upgrade prompt
+    var shouldPromptForVoiceUpgrade: Bool {
+        needsVoiceUpgrade && !voicePromptDismissed
+    }
+
+    /// Whether to vibrate when speech begins
+    var vibrateOnSpeech: Bool {
+        get { UserDefaults.standard.bool(forKey: Self.vibrateOnSpeechKey) }
+        set { UserDefaults.standard.set(newValue, forKey: Self.vibrateOnSpeechKey) }
+    }
+
+    /// The user's preferred voice identifier, if set
+    var preferredVoiceID: String? {
+        get { UserDefaults.standard.string(forKey: Self.preferredVoiceKey) }
+        set {
+            UserDefaults.standard.set(newValue, forKey: Self.preferredVoiceKey)
+            reloadVoice()
+        }
+    }
+
     private override init() {
-        self.voice = Self.resolveVoice()
         super.init()
         synthesizer.delegate = self
+        reloadVoice()
+    }
+
+    /// Reloads the active voice from user preference or auto-selection.
+    func reloadVoice() {
+        if let savedID = UserDefaults.standard.string(forKey: Self.preferredVoiceKey),
+           let saved = AVSpeechSynthesisVoice(identifier: savedID) {
+            voice = saved
+        } else {
+            voice = Self.resolveVoice()
+        }
+    }
+
+    // MARK: - Available Voices
+
+    struct VoiceInfo: Identifiable {
+        let id: String // identifier
+        let name: String
+        let quality: String
+        let isSelected: Bool
+    }
+
+    /// Returns all en-US voices grouped and sorted by quality tier.
+    /// Filters out novelty/eloquence voices (Bells, Boing, etc.)
+    func availableVoices() -> [VoiceInfo] {
+        let allVoices = AVSpeechSynthesisVoice.speechVoices()
+            .filter { $0.language == "en-US" && !$0.identifier.contains("eloquence") && !$0.identifier.contains("speech.synthesis") }
+            .sorted { tierRank($0.identifier) < tierRank($1.identifier) }
+
+        let currentID = voice?.identifier
+        return allVoices.map { v in
+            VoiceInfo(
+                id: v.identifier,
+                name: v.name,
+                quality: tierLabel(v.identifier),
+                isSelected: v.identifier == currentID
+            )
+        }
+    }
+
+    private func tierRank(_ identifier: String) -> Int {
+        if identifier.contains("premium") { return 0 }
+        if identifier.contains("enhanced") { return 1 }
+        if identifier.contains("siri") { return 2 }
+        if identifier.contains("compact") { return 3 }
+        if identifier.contains("eloquence") { return 5 }
+        return 4
+    }
+
+    private func tierLabel(_ identifier: String) -> String {
+        if identifier.contains("premium") { return "Premium" }
+        if identifier.contains("enhanced") { return "Enhanced" }
+        if identifier.contains("siri") { return "Siri" }
+        if identifier.contains("super-compact") { return "Super Compact" }
+        if identifier.contains("compact") { return "Compact" }
+        if identifier.contains("eloquence") { return "Eloquence" }
+        return "Default"
     }
 
     // MARK: - Voice Selection
@@ -33,13 +126,24 @@ final class AudioCueService: NSObject, AVSpeechSynthesizerDelegate {
         let available = AVSpeechSynthesisVoice.speechVoices().filter { $0.language == "en-US" }
         let availableIDs = Set(available.map(\.identifier))
 
-        // Preferred voices, best quality first
+        // Preferred voices, best quality first.
+        // premium = most natural (must be downloaded)
+        // enhanced = good (must be downloaded)
+        // siri = high quality, often pre-installed
+        // compact = passable (often pre-installed)
+        // eloquence = awful robotic legacy voices — avoid at all costs
         let preferredIDs = [
+            // Premium
             "com.apple.voice.premium.en-US.Ava",
             "com.apple.voice.premium.en-US.Zoe",
+            "com.apple.voice.premium.en-US.Samantha",
+            // Enhanced
             "com.apple.voice.enhanced.en-US.Ava",
             "com.apple.voice.enhanced.en-US.Zoe",
             "com.apple.voice.enhanced.en-US.Samantha",
+            // Compact (still decent, often pre-installed)
+            "com.apple.voice.compact.en-US.Samantha",
+            "com.apple.voice.super-compact.en-US.Samantha",
         ]
 
         for id in preferredIDs {
@@ -48,11 +152,16 @@ final class AudioCueService: NSObject, AVSpeechSynthesizerDelegate {
             }
         }
 
-        // Fall back to any en-US voice — but skip compact/super-compact if possible
-        let nonCompact = available.first { id in
-            !id.identifier.contains("compact")
+        // Try Siri voices — high quality and often pre-installed
+        if let siri = available.first(where: { $0.identifier.contains("siri") }) {
+            return siri
         }
-        return nonCompact ?? AVSpeechSynthesisVoice(language: "en-US")
+
+        // Last resort — any en-US voice that isn't an eloquence voice
+        let nonEloquence = available.first { voice in
+            !voice.identifier.contains("eloquence")
+        }
+        return nonEloquence ?? AVSpeechSynthesisVoice(language: "en-US")
     }
 
     // MARK: - Audio Session
@@ -113,6 +222,11 @@ final class AudioCueService: NSObject, AVSpeechSynthesizerDelegate {
         // Stop any in-progress utterance so cues don't queue up
         if synthesizer.isSpeaking {
             synthesizer.stopSpeaking(at: .immediate)
+        }
+
+        // Vibrate if enabled
+        if vibrateOnSpeech {
+            impactMedium.impactOccurred()
         }
 
         // Activate session (ducks music) right before speaking
