@@ -224,9 +224,15 @@ final class AudioCueService: NSObject, AVSpeechSynthesizerDelegate {
             synthesizer.stopSpeaking(at: .immediate)
         }
 
-        // Vibrate if enabled
+        // Triple-tap pulse if enabled
         if vibrateOnSpeech {
-            impactMedium.impactOccurred()
+            impactHeavy.impactOccurred()
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.12) { [self] in
+                impactHeavy.impactOccurred()
+            }
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.24) { [self] in
+                impactHeavy.impactOccurred()
+            }
         }
 
         // Activate session (ducks music) right before speaking
