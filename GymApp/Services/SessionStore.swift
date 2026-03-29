@@ -48,7 +48,10 @@ final class SessionStore {
         save()
 
         // Write to Apple Health
-        if let hk = healthKitService {
+        let healthEnabled = UserDefaults.standard.object(forKey: "Settings.healthKitEnabled") == nil
+            ? true
+            : UserDefaults.standard.bool(forKey: "Settings.healthKitEnabled")
+        if healthEnabled, let hk = healthKitService {
             Task { await hk.saveWorkout(session) }
         }
     }

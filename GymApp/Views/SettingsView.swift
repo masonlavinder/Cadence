@@ -7,7 +7,12 @@ struct SettingsView: View {
     @Environment(\.dsTheme) private var theme
 
     private let audio = AudioCueService.shared
+    @State private var voiceEnabled: Bool = AudioCueService.shared.voiceEnabled
     @State private var vibrateOnSpeech: Bool = AudioCueService.shared.vibrateOnSpeech
+    @State private var healthKitEnabled: Bool = {
+        if UserDefaults.standard.object(forKey: "Settings.healthKitEnabled") == nil { return true }
+        return UserDefaults.standard.bool(forKey: "Settings.healthKitEnabled")
+    }()
 
     var body: some View {
         ScrollView {
@@ -35,41 +40,46 @@ struct SettingsView: View {
 
                 // Settings rows
                 VStack(spacing: DSSpacing.sm) {
-                    NavigationLink {
-                        VoiceSettingsView()
-                    } label: {
-                        settingsRow(
-                            icon: "waveform",
-                            title: "Coaching Voice",
-                            detail: audio.voice?.name ?? "None"
-                        )
+                    // Voice coaching toggle
+                    settingsToggle(
+                        icon: "speaker.wave.2",
+                        title: "Voice Coaching",
+                        isOn: $voiceEnabled
+                    ) { newValue in
+                        audio.voiceEnabled = newValue
                     }
-                    .buttonStyle(.plain)
+
+                    // Coaching voice picker (only if voice enabled)
+                    if voiceEnabled {
+                        NavigationLink {
+                            VoiceSettingsView()
+                        } label: {
+                            settingsRow(
+                                icon: "waveform",
+                                title: "Coaching Voice",
+                                detail: audio.voice?.name ?? "None"
+                            )
+                        }
+                        .buttonStyle(.plain)
+                    }
 
                     // Vibrate toggle
-                    HStack(spacing: DSSpacing.md) {
-                        Image(systemName: "iphone.radiowaves.left.and.right")
-                            .font(.body)
-                            .foregroundStyle(theme.primary)
-                            .frame(width: 28, height: 28)
-
-                        Text("Vibrate on Voice Cues")
-                            .font(.body)
-                            .foregroundStyle(theme.textPrimary)
-
-                        Spacer()
-
-                        Toggle("", isOn: $vibrateOnSpeech)
-                            .labelsHidden()
-                            .tint(theme.primary)
-                            .onChange(of: vibrateOnSpeech) { _, newValue in
-                                audio.vibrateOnSpeech = newValue
-                            }
+                    settingsToggle(
+                        icon: "iphone.radiowaves.left.and.right",
+                        title: "Vibrate on Voice Cues",
+                        isOn: $vibrateOnSpeech
+                    ) { newValue in
+                        audio.vibrateOnSpeech = newValue
                     }
-                    .padding(.vertical, DSSpacing.md)
-                    .padding(.horizontal, DSSpacing.lg)
-                    .background(DSColors.surface)
-                    .clipShape(RoundedRectangle(cornerRadius: DSRadius.md))
+
+                    // Apple Health toggle
+                    settingsToggle(
+                        icon: "heart.fill",
+                        title: "Apple Health",
+                        isOn: $healthKitEnabled
+                    ) { newValue in
+                        UserDefaults.standard.set(newValue, forKey: "Settings.healthKitEnabled")
+                    }
                 }
                 .padding(.horizontal, 16)
             }
@@ -97,6 +107,32 @@ struct SettingsView: View {
             Image(systemName: "chevron.right")
                 .font(.caption)
                 .foregroundStyle(theme.textTertiary)
+        }
+        .padding(.vertical, DSSpacing.md)
+        .padding(.horizontal, DSSpacing.lg)
+        .background(DSColors.surface)
+        .clipShape(RoundedRectangle(cornerRadius: DSRadius.md))
+    }
+
+    private func settingsToggle(icon: String, title: String, isOn: Binding<Bool>, onChange: @escaping (Bool) -> Void) -> some View {
+        HStack(spacing: DSSpacing.md) {
+            Image(systemName: icon)
+                .font(.body)
+                .foregroundStyle(theme.primary)
+                .frame(width: 28, height: 28)
+
+            Text(title)
+                .font(.body)
+                .foregroundStyle(theme.textPrimary)
+
+            Spacer()
+
+            Toggle("", isOn: isOn)
+                .labelsHidden()
+                .tint(theme.primary)
+                .onChange(of: isOn.wrappedValue) { _, newValue in
+                    onChange(newValue)
+                }
         }
         .padding(.vertical, DSSpacing.md)
         .padding(.horizontal, DSSpacing.lg)

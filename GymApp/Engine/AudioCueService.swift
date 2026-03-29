@@ -29,6 +29,7 @@ final class AudioCueService: NSObject, AVSpeechSynthesizerDelegate {
     private static let voicePromptDismissedKey = "AudioCueService.voicePromptDismissed"
     private static let preferredVoiceKey = "AudioCueService.preferredVoiceID"
     private static let vibrateOnSpeechKey = "AudioCueService.vibrateOnSpeech"
+    private static let voiceEnabledKey = "AudioCueService.voiceEnabled"
 
     /// Whether the user has already dismissed the voice upgrade prompt
     var voicePromptDismissed: Bool {
@@ -39,6 +40,15 @@ final class AudioCueService: NSObject, AVSpeechSynthesizerDelegate {
     /// True when we should show the voice upgrade prompt
     var shouldPromptForVoiceUpgrade: Bool {
         needsVoiceUpgrade && !voicePromptDismissed
+    }
+
+    /// Whether voice coaching is enabled
+    var voiceEnabled: Bool {
+        get {
+            if UserDefaults.standard.object(forKey: Self.voiceEnabledKey) == nil { return true }
+            return UserDefaults.standard.bool(forKey: Self.voiceEnabledKey)
+        }
+        set { UserDefaults.standard.set(newValue, forKey: Self.voiceEnabledKey) }
     }
 
     /// Whether to vibrate when speech begins
@@ -219,12 +229,7 @@ final class AudioCueService: NSObject, AVSpeechSynthesizerDelegate {
     // MARK: - Speech
 
     func speak(_ text: String, urgency: Urgency = .normal) {
-        // Stop any in-progress utterance so cues don't queue up
-        if synthesizer.isSpeaking {
-            synthesizer.stopSpeaking(at: .immediate)
-        }
-
-        // Triple-tap pulse if enabled
+        // Triple-tap pulse if enabled (fires even if voice is off)
         if vibrateOnSpeech {
             impactHeavy.impactOccurred()
             DispatchQueue.main.asyncAfter(deadline: .now() + 0.12) { [self] in
@@ -233,6 +238,13 @@ final class AudioCueService: NSObject, AVSpeechSynthesizerDelegate {
             DispatchQueue.main.asyncAfter(deadline: .now() + 0.24) { [self] in
                 impactHeavy.impactOccurred()
             }
+        }
+
+        guard voiceEnabled else { return }
+
+        // Stop any in-progress utterance so cues don't queue up
+        if synthesizer.isSpeaking {
+            synthesizer.stopSpeaking(at: .immediate)
         }
 
         // Activate session (ducks music) right before speaking
