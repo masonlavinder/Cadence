@@ -10,6 +10,9 @@ final class SessionStore {
     private let modelContext: ModelContext
     var healthKitService: HealthKitService?
 
+    /// Revision counter — bumped on every write so SwiftUI re-evaluates queries
+    private(set) var revision: Int = 0
+
     init(modelContext: ModelContext) {
         self.modelContext = modelContext
     }
@@ -265,6 +268,7 @@ final class SessionStore {
     private func save() {
         do {
             try modelContext.save()
+            revision += 1
         } catch {
             print("Error saving SessionStore context: \(error)")
         }

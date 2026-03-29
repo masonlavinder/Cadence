@@ -72,6 +72,7 @@ struct ExerciseCatalogView: View {
                                 ExerciseRow(exercise: exercise)
                                     .padding(.horizontal, 16)
                                     .padding(.vertical, 6)
+                                    .contentShape(Rectangle())
                             }
                             .buttonStyle(.plain)
 
@@ -240,6 +241,8 @@ struct ExerciseDetailView: View {
     @Environment(ExerciseStore.self) private var exerciseStore
     @Environment(\.dsTheme) private var theme
     @State private var showingEditor = false
+    @State private var showingResetConfirmation = false
+    @State private var showingActions = false
 
     var body: some View {
         List {
@@ -322,11 +325,32 @@ struct ExerciseDetailView: View {
         .toolbar {
             ToolbarItem(placement: .primaryAction) {
                 Button {
-                    showingEditor = true
+                    showingActions = true
                 } label: {
-                    Label("Edit", systemImage: "pencil")
+                    Image(systemName: "ellipsis.circle")
                 }
             }
+        }
+        .confirmationDialog("", isPresented: $showingActions, titleVisibility: .hidden) {
+            Button("Edit") {
+                showingEditor = true
+            }
+
+            if exerciseStore.isModified(exercise) {
+                Button("Reset to Default") {
+                    showingResetConfirmation = true
+                }
+            }
+
+            Button("Cancel", role: .cancel) {}
+        }
+        .alert("Reset to Default?", isPresented: $showingResetConfirmation) {
+            Button("Reset", role: .destructive) {
+                exerciseStore.resetToDefault(exercise)
+            }
+            Button("Cancel", role: .cancel) {}
+        } message: {
+            Text("This will set this movement back to the default setup. Your favorites and usage history will be kept.")
         }
         .sheet(isPresented: $showingEditor) {
             NavigationStack {

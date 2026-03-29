@@ -201,9 +201,6 @@ struct WorkoutEditorView: View {
                 .disabled(name.isEmpty)
             }
 
-            ToolbarItem(placement: .primaryAction) {
-                EditButton()
-            }
         }
         .sheet(item: $sheetType) { type in
             switch type {
@@ -375,6 +372,7 @@ struct ExercisePickerView: View {
     @State private var searchText = ""
     @State private var selectedType: ExerciseType?
     @State private var selectedEquipment: Equipment?
+    @State private var selectedExercises: Set<UUID> = []
 
     let onSelect: (Exercise) -> Void
 
@@ -454,16 +452,37 @@ struct ExercisePickerView: View {
             Section {
                 ForEach(filteredExercises) { exercise in
                     Button {
-                        onSelect(exercise)
-                        dismiss()
+                        toggleSelection(exercise)
                     } label: {
-                        ExercisePickerRow(exercise: exercise)
+                        ExercisePickerRow(
+                            exercise: exercise,
+                            isSelected: selectedExercises.contains(exercise.id)
+                        )
                     }
                 }
             }
         }
+        .safeAreaInset(edge: .bottom) {
+            if !selectedExercises.isEmpty {
+                Button {
+                    addSelected()
+                } label: {
+                    Text("Add \(selectedExercises.count) Movement\(selectedExercises.count == 1 ? "" : "s")")
+                        .font(.headline)
+                        .frame(maxWidth: .infinity)
+                        .padding(.vertical, 14)
+                        .background(theme.primary)
+                        .foregroundStyle(theme.textOnPrimary)
+                        .clipShape(RoundedRectangle(cornerRadius: DSRadius.md))
+                }
+                .buttonStyle(.plain)
+                .padding(.horizontal, 16)
+                .padding(.bottom, 8)
+                .background(.ultraThinMaterial)
+            }
+        }
         .searchable(text: $searchText, prompt: "Search movements")
-        .navigationTitle("Add Movement")
+        .navigationTitle("Add Movements")
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {
             ToolbarItem(placement: .cancellationAction) {
@@ -478,12 +497,29 @@ struct ExercisePickerView: View {
             }
         }
     }
+
+    private func toggleSelection(_ exercise: Exercise) {
+        if selectedExercises.contains(exercise.id) {
+            selectedExercises.remove(exercise.id)
+        } else {
+            selectedExercises.insert(exercise.id)
+        }
+    }
+
+    private func addSelected() {
+        let allExercises = exerciseStore.all()
+        for exercise in allExercises where selectedExercises.contains(exercise.id) {
+            onSelect(exercise)
+        }
+        dismiss()
+    }
 }
 
 // MARK: - ExercisePickerRow
 
 struct ExercisePickerRow: View {
     let exercise: Exercise
+    var isSelected: Bool = false
     @Environment(\.dsTheme) private var theme
 
     var body: some View {
@@ -522,8 +558,9 @@ struct ExercisePickerRow: View {
 
             Spacer()
 
-            Image(systemName: "plus.circle.fill")
-                .foregroundStyle(theme.primary)
+            Image(systemName: isSelected ? "checkmark.circle.fill" : "circle")
+                .font(.title3)
+                .foregroundStyle(isSelected ? theme.primary : theme.textTertiary)
         }
     }
 

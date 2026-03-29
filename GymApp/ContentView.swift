@@ -10,49 +10,33 @@ import SwiftData
 
 /// Root navigation view with tab-based navigation
 struct ContentView: View {
+    @State private var selectedTab: AppTab = .home
+
     var body: some View {
-        TabView {
-            // Workout Library Tab
+        TabView(selection: $selectedTab) {
             NavigationStack {
-                WorkoutsView()
+                HomeView(selectedTab: $selectedTab)
             }
             .tabItem {
-                Label("Workouts", systemImage: "dumbbell")
+                Label("Home", systemImage: "house.fill")
             }
+            .tag(AppTab.home)
 
-            // Exercise Catalog Tab
             NavigationStack {
-                ExerciseCatalogView()
+                WorkoutsTabView()
             }
             .tabItem {
-                Label("Movements", systemImage: "figure.strengthtraining.traditional")
+                Label("Workouts", systemImage: "dumbbell.fill")
             }
+            .tag(AppTab.workouts)
 
-            // Insights Tab
             NavigationStack {
                 InsightsView()
             }
             .tabItem {
                 Label("Insights", systemImage: "chart.bar.fill")
             }
-
-            // Coach Tab
-            if FeatureFlags.coachTab {
-                NavigationStack {
-                    ChatView()
-                }
-                .tabItem {
-                    Label("Coach", systemImage: "bubble.left.and.text.bubble.right")
-                }
-            }
-
-            // Settings Tab
-            NavigationStack {
-                SettingsView()
-            }
-            .tabItem {
-                Label("Settings", systemImage: "gearshape")
-            }
+            .tag(AppTab.insights)
         }
         .toolbarBackground(.ultraThinMaterial, for: .tabBar)
     }

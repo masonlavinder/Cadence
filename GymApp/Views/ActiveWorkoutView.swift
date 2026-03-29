@@ -6,6 +6,7 @@ struct ActiveWorkoutView: View {
     let workout: Workout
 
     @Environment(SessionStore.self) private var sessionStore
+    @Environment(WorkoutStore.self) private var workoutStore
     @Environment(\.dismiss) private var dismiss
     @Environment(\.dsTheme) private var theme
 
@@ -490,6 +491,7 @@ struct ActiveWorkoutView: View {
             if let session = session {
                 sessionStore.completeSession(session)
             }
+            workoutStore.markCompleted(workout)
         }
     }
 

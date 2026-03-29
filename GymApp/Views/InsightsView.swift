@@ -9,6 +9,7 @@ struct InsightsView: View {
     @Environment(\.dsTheme) private var theme
 
     var body: some View {
+        let _ = sessionStore.revision
         let completed = sessionStore.completedSessions()
         let hasData = !completed.isEmpty
 

@@ -611,13 +611,12 @@ class LocalWorkoutGenerator {
     private func generateWorkoutName() -> String {
         let difficultyPrefix = difficulty.rawValue.capitalized
         let categoryName = category.rawValue.capitalized
-        let durationText = "\(duration)-Min"
 
         if !targetMuscles.isEmpty {
             let muscleText = targetMuscles.first?.rawValue.capitalized ?? "Full Body"
-            return "\(durationText) \(difficultyPrefix) \(muscleText) \(categoryName)"
+            return "\(difficultyPrefix) \(muscleText) \(categoryName)"
         } else {
-            return "\(durationText) \(difficultyPrefix) \(categoryName)"
+            return "\(difficultyPrefix) \(categoryName)"
         }
     }
 

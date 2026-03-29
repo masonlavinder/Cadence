@@ -112,6 +112,48 @@ final class ExerciseStore {
         }
     }
     
+    /// Fetch exercises sorted by lowest usage (for discovery)
+    func leastUsed(limit: Int = 5) -> [Exercise] {
+        Array(all().sorted { $0.timesUsed < $1.timesUsed }.prefix(limit))
+    }
+
+    // MARK: - Built-in Defaults
+
+    /// Returns the built-in default for an exercise by name, or nil if it's user-created.
+    func builtInDefault(for exercise: Exercise) -> (String, String, ExerciseType, [MuscleGroup], [MuscleGroup], Equipment, BlockType, MovementPattern?)? {
+        let name = exercise.name.lowercased()
+        return Self.builtInExercises.first { $0.0.lowercased() == name }
+    }
+
+    /// Whether a built-in exercise has been modified from its defaults.
+    func isModified(_ exercise: Exercise) -> Bool {
+        guard let defaults = builtInDefault(for: exercise) else { return false }
+        return exercise.exerciseDescription != defaults.1
+            || exercise.exerciseType != defaults.2
+            || exercise.primaryMuscleGroups != defaults.3
+            || exercise.secondaryMuscleGroups != defaults.4
+            || exercise.equipment != defaults.5
+            || exercise.defaultBlockType != defaults.6
+            || exercise.movementPattern != defaults.7
+    }
+
+    /// Reset a built-in exercise back to its Cadence defaults.
+    func resetToDefault(_ exercise: Exercise) {
+        guard let defaults = builtInDefault(for: exercise) else { return }
+        exercise.exerciseDescription = defaults.1
+        exercise.exerciseType = defaults.2
+        exercise.primaryMuscleGroups = defaults.3
+        exercise.secondaryMuscleGroups = defaults.4
+        exercise.equipment = defaults.5
+        exercise.defaultBlockType = defaults.6
+        exercise.movementPattern = defaults.7
+        exercise.defaultSets = 3
+        exercise.defaultRepCount = defaults.6 == .repBased ? 10 : nil
+        exercise.defaultDurationSeconds = defaults.6 == .timed ? 45 : nil
+        exercise.isCustom = false
+        update(exercise)
+    }
+
     // MARK: - AI Integration
     
     /// Upsert exercises from AI generation

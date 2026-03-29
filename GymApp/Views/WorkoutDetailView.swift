@@ -12,6 +12,7 @@ struct WorkoutDetailView: View {
     @State private var showingEditor = false
     @State private var showingActiveWorkout = false
     @State private var showingDeleteConfirmation = false
+    @State private var showingActions = false
     @Environment(\.dismiss) private var dismiss
 
     var sortedEntries: [WorkoutEntry] {
@@ -20,6 +21,23 @@ struct WorkoutDetailView: View {
 
     var body: some View {
         List {
+            // Header
+            Section {
+                VStack(alignment: .leading, spacing: 2) {
+                    Text("cadence")
+                        .font(.system(size: 11, weight: .medium, design: .rounded))
+                        .tracking(4)
+                        .textCase(.uppercase)
+                        .foregroundStyle(theme.primary)
+                    Text(workout.name)
+                        .font(.title)
+                        .fontWeight(.bold)
+                        .foregroundStyle(theme.textPrimary)
+                }
+                .listRowBackground(Color.clear)
+                .listRowInsets(EdgeInsets(top: 0, leading: 16, bottom: 0, trailing: 16))
+            }
+
             // Overview
             Section {
                 VStack(alignment: .leading, spacing: 12) {
@@ -111,26 +129,27 @@ struct WorkoutDetailView: View {
                 }
             }
         }
-        .navigationTitle(workout.name)
+        .navigationTitle("")
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {
             ToolbarItem(placement: .primaryAction) {
-                Menu {
-                    Button {
-                        showingEditor = true
-                    } label: {
-                        Label("Edit", systemImage: "pencil")
-                    }
-
-                    Button(role: .destructive) {
-                        showingDeleteConfirmation = true
-                    } label: {
-                        Label("Delete Workout", systemImage: "trash")
-                    }
+                Button {
+                    showingActions = true
                 } label: {
                     Image(systemName: "ellipsis.circle")
                 }
             }
+        }
+        .confirmationDialog("", isPresented: $showingActions, titleVisibility: .hidden) {
+            Button("Edit") {
+                showingEditor = true
+            }
+
+            Button("Delete Workout", role: .destructive) {
+                showingDeleteConfirmation = true
+            }
+
+            Button("Cancel", role: .cancel) {}
         }
         .confirmationDialog(
             "Delete \"\(workout.name)\"?",
