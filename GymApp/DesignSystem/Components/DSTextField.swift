@@ -42,7 +42,7 @@ struct DSTextField: View {
                         Image(systemName: "xmark.circle.fill")
                             .foregroundStyle(theme.textTertiary)
                     }
-                    .buttonStyle(.plain)
+                    .buttonStyle(.tactile)
                 }
             }
             .padding(DSSpacing.md)

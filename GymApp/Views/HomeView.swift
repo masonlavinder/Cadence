@@ -140,8 +140,12 @@ struct HomeView: View {
                     .frame(width: 36, height: 36)
                     .background(theme.primary)
                     .clipShape(Circle())
+                    .overlay(
+                        Circle()
+                            .stroke(Color.white.opacity(0.15), lineWidth: 1)
+                    )
             }
-            .buttonStyle(.plain)
+            .buttonStyle(.tactile)
         }
         .padding(.horizontal, DSSpacing.xl)
         .padding(.top, DSSpacing.lg)
@@ -167,7 +171,7 @@ struct HomeView: View {
                 .foregroundStyle(theme.textOnPrimary)
                 .clipShape(RoundedRectangle(cornerRadius: DSRadius.md))
             }
-            .buttonStyle(.plain)
+            .buttonStyle(.tactile)
 
             Button {
                 showingAIGenerator = true
@@ -181,15 +185,15 @@ struct HomeView: View {
                 }
                 .frame(maxWidth: .infinity)
                 .padding(.vertical, DSSpacing.md)
-                .background(theme.surfaceElevated)
+                .background(.regularMaterial)
                 .foregroundStyle(theme.primary)
                 .clipShape(RoundedRectangle(cornerRadius: DSRadius.md))
                 .overlay(
                     RoundedRectangle(cornerRadius: DSRadius.md)
-                        .stroke(theme.primary.opacity(0.3), lineWidth: 1)
+                        .stroke(Color.white.opacity(0.15), lineWidth: 1)
                 )
             }
-            .buttonStyle(.plain)
+            .buttonStyle(.tactile)
         }
         .padding(.horizontal, DSSpacing.xl)
     }
@@ -212,7 +216,7 @@ struct HomeView: View {
                     .font(DSFont.captionBold.font)
                     .foregroundStyle(theme.primary)
                 }
-                .buttonStyle(.plain)
+                .buttonStyle(.tactile)
             }
 
             HStack(spacing: DSSpacing.lg) {
@@ -278,7 +282,7 @@ struct HomeView: View {
                     .font(DSFont.captionBold.font)
                     .foregroundStyle(theme.primary)
                 }
-                .buttonStyle(.plain)
+                .buttonStyle(.tactile)
             }
             .padding(.horizontal, DSSpacing.xl)
 
@@ -340,12 +344,12 @@ struct HomeView: View {
                         .foregroundStyle(theme.textOnPrimary)
                         .clipShape(RoundedRectangle(cornerRadius: 6))
                 }
-                .buttonStyle(.plain)
+                .buttonStyle(.tactile)
             }
             .frame(width: 200)
             .dsCard(padding: DSSpacing.md)
         }
-        .buttonStyle(.plain)
+        .buttonStyle(.tactile)
     }
 
     // MARK: - Insights Section
@@ -457,10 +461,14 @@ struct HomeView: View {
                             }
                             .padding(.horizontal, DSSpacing.md)
                             .padding(.vertical, DSSpacing.sm)
-                            .background(suggestion.color.opacity(0.1))
+                            .background(.regularMaterial)
                             .clipShape(Capsule())
+                            .overlay(
+                                Capsule()
+                                    .stroke(suggestion.color.opacity(0.15), lineWidth: 1)
+                            )
                         }
-                        .buttonStyle(.plain)
+                        .buttonStyle(.tactile)
                     }
                 }
                 .padding(.horizontal, DSSpacing.xl)
@@ -519,7 +527,7 @@ struct HomeView: View {
                             .frame(width: 160, height: 120, alignment: .leading)
                             .dsCard(padding: DSSpacing.md)
                         }
-                        .buttonStyle(.plain)
+                        .buttonStyle(.tactile)
                     }
                 }
                 .padding(.horizontal, DSSpacing.xl)
@@ -670,7 +678,7 @@ struct ExerciseSuggestionList: View {
                                     .padding(.horizontal, 16)
                                     .padding(.vertical, 6)
                             }
-                            .buttonStyle(.plain)
+                            .buttonStyle(.tactile)
 
                             if exercise.id != exercises.last?.id {
                                 Divider()

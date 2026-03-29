@@ -108,7 +108,7 @@ struct WorkoutsTabView: View {
                             .foregroundStyle(theme.primary)
                             .contentShape(Rectangle())
                     }
-                    .buttonStyle(.plain)
+                    .buttonStyle(.tactile)
 
                     if segment == .library {
                         Button {
@@ -120,7 +120,7 @@ struct WorkoutsTabView: View {
                                 .foregroundStyle(theme.primary)
                                 .contentShape(Rectangle())
                         }
-                        .buttonStyle(.plain)
+                        .buttonStyle(.tactile)
                     }
                 }
             }
@@ -145,11 +145,11 @@ struct WorkoutsTabView: View {
                         Image(systemName: "xmark.circle.fill")
                             .foregroundStyle(theme.textSecondary)
                     }
-                    .buttonStyle(.plain)
+                    .buttonStyle(.tactile)
                 }
             }
             .padding(10)
-            .background(.ultraThinMaterial)
+            .background(.regularMaterial)
             .clipShape(RoundedRectangle(cornerRadius: 10))
         }
         .padding(.horizontal, 16)
@@ -422,7 +422,7 @@ struct WorkoutsTabView: View {
                                 .padding(.vertical, 6)
                                 .contentShape(Rectangle())
                         }
-                        .buttonStyle(.plain)
+                        .buttonStyle(.tactile)
 
                         if exercise.id != filteredExercises.last?.id {
                             Divider()

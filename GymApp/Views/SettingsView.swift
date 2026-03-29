@@ -63,8 +63,12 @@ struct SettingsView: View {
                     }
                     .padding(.vertical, DSSpacing.md)
                     .padding(.horizontal, DSSpacing.lg)
-                    .background(DSColors.surface)
+                    .background(.regularMaterial)
                     .clipShape(RoundedRectangle(cornerRadius: DSRadius.md))
+                    .overlay(
+                        RoundedRectangle(cornerRadius: DSRadius.md)
+                            .stroke(Color.white.opacity(0.15), lineWidth: 1)
+                    )
 
                     // Voice coaching toggle
                     settingsToggle(
@@ -86,7 +90,7 @@ struct SettingsView: View {
                                 detail: audio.voice?.name ?? "None"
                             )
                         }
-                        .buttonStyle(.plain)
+                        .buttonStyle(.tactile)
                     }
 
                     // Vibrate toggle
@@ -124,8 +128,12 @@ struct SettingsView: View {
                     }
                     .padding(.vertical, DSSpacing.md)
                     .padding(.horizontal, DSSpacing.lg)
-                    .background(DSColors.surface)
+                    .background(.regularMaterial)
                     .clipShape(RoundedRectangle(cornerRadius: DSRadius.md))
+                    .overlay(
+                        RoundedRectangle(cornerRadius: DSRadius.md)
+                            .stroke(Color.white.opacity(0.15), lineWidth: 1)
+                    )
 
                     // Apple Health toggle
                     settingsToggle(
@@ -181,8 +189,12 @@ struct SettingsView: View {
         }
         .padding(.vertical, DSSpacing.md)
         .padding(.horizontal, DSSpacing.lg)
-        .background(DSColors.surface)
+        .background(.regularMaterial)
         .clipShape(RoundedRectangle(cornerRadius: DSRadius.md))
+        .overlay(
+            RoundedRectangle(cornerRadius: DSRadius.md)
+                .stroke(Color.white.opacity(0.15), lineWidth: 1)
+        )
     }
 
     private func settingsToggle(icon: String, title: String, isOn: Binding<Bool>, onChange: @escaping (Bool) -> Void) -> some View {
@@ -207,8 +219,12 @@ struct SettingsView: View {
         }
         .padding(.vertical, DSSpacing.md)
         .padding(.horizontal, DSSpacing.lg)
-        .background(DSColors.surface)
+        .background(.regularMaterial)
         .clipShape(RoundedRectangle(cornerRadius: DSRadius.md))
+        .overlay(
+            RoundedRectangle(cornerRadius: DSRadius.md)
+                .stroke(Color.white.opacity(0.15), lineWidth: 1)
+        )
     }
 }
 
@@ -244,8 +260,12 @@ struct VoiceSettingsView: View {
                         Spacer()
                     }
                     .padding(DSSpacing.lg)
-                    .background(DSColors.surface)
+                    .background(.regularMaterial)
                     .clipShape(RoundedRectangle(cornerRadius: DSRadius.md))
+                    .overlay(
+                        RoundedRectangle(cornerRadius: DSRadius.md)
+                            .stroke(Color.white.opacity(0.15), lineWidth: 1)
+                    )
                     .padding(.horizontal, 16)
                     .padding(.top, DSSpacing.sm)
                     .padding(.bottom, DSSpacing.lg)
@@ -382,7 +402,7 @@ struct VoiceSettingsView: View {
                     : Color.clear
             )
         }
-        .buttonStyle(.plain)
+        .buttonStyle(.tactile)
     }
 
     // MARK: - Actions

@@ -48,7 +48,7 @@ struct PageHeaderView<Filters: View>: View {
                                 .foregroundStyle(theme.primary)
                                 .contentShape(Rectangle())
                         }
-                        .buttonStyle(.plain)
+                        .buttonStyle(.tactile)
                     }
 
                     Button {
@@ -60,7 +60,7 @@ struct PageHeaderView<Filters: View>: View {
                             .foregroundStyle(theme.primary)
                             .contentShape(Rectangle())
                     }
-                    .buttonStyle(.plain)
+                    .buttonStyle(.tactile)
                 }
             }
 
@@ -76,7 +76,7 @@ struct PageHeaderView<Filters: View>: View {
                         Image(systemName: "xmark.circle.fill")
                             .foregroundStyle(theme.textSecondary)
                     }
-                    .buttonStyle(.plain)
+                    .buttonStyle(.tactile)
                 }
             }
             .padding(10)

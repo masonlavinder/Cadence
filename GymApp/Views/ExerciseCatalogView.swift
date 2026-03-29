@@ -74,7 +74,7 @@ struct ExerciseCatalogView: View {
                                     .padding(.vertical, 6)
                                     .contentShape(Rectangle())
                             }
-                            .buttonStyle(.plain)
+                            .buttonStyle(.tactile)
 
                             if exercise.id != filteredExercises.last?.id {
                                 Divider()
@@ -242,7 +242,6 @@ struct ExerciseDetailView: View {
     @Environment(\.dsTheme) private var theme
     @State private var showingEditor = false
     @State private var showingResetConfirmation = false
-    @State private var showingActions = false
 
     private var beginnerAlternatives: [Exercise] {
         guard !exercise.tags.contains("beginner") else { return [] }
@@ -366,25 +365,25 @@ struct ExerciseDetailView: View {
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {
             ToolbarItem(placement: .primaryAction) {
-                Button {
-                    showingActions = true
+                Menu {
+                    Button {
+                        showingEditor = true
+                    } label: {
+                        Label("Edit", systemImage: "pencil")
+                    }
+
+                    if exerciseStore.isModified(exercise) {
+                        Button {
+                            showingResetConfirmation = true
+                        } label: {
+                            Label("Reset to Default", systemImage: "arrow.counterclockwise")
+                        }
+                    }
                 } label: {
-                    Image(systemName: "ellipsis.circle")
+                    Image(systemName: "ellipsis")
+                        .font(.body)
                 }
             }
-        }
-        .confirmationDialog("", isPresented: $showingActions, titleVisibility: .hidden) {
-            Button("Edit") {
-                showingEditor = true
-            }
-
-            if exerciseStore.isModified(exercise) {
-                Button("Reset to Default") {
-                    showingResetConfirmation = true
-                }
-            }
-
-            Button("Cancel", role: .cancel) {}
         }
         .alert("Reset to Default?", isPresented: $showingResetConfirmation) {
             Button("Reset", role: .destructive) {

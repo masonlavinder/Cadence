@@ -54,7 +54,7 @@ struct DSButton: View {
                 }
             }
         }
-        .buttonStyle(.plain)
+        .buttonStyle(.tactile)
         .opacity(isDisabled ? 0.5 : 1.0)
         .allowsHitTesting(!isDisabled && !isLoading)
     }
@@ -125,6 +125,24 @@ struct DSButton: View {
         case .lg: return .headline
         }
     }
+}
+
+// MARK: - Tactile Button Style
+
+/// A button style that provides native iOS-like press feedback with a subtle
+/// scale-down animation and haptic tap. Use instead of `.buttonStyle(.plain)`.
+struct DSTactileButtonStyle: ButtonStyle {
+    func makeBody(configuration: Configuration) -> some View {
+        configuration.label
+            .scaleEffect(configuration.isPressed ? 0.97 : 1.0)
+            .opacity(configuration.isPressed ? 0.85 : 1.0)
+            .animation(.easeInOut(duration: 0.15), value: configuration.isPressed)
+            .sensoryFeedback(.impact(flexibility: .soft, intensity: 0.4), trigger: configuration.isPressed)
+    }
+}
+
+extension ButtonStyle where Self == DSTactileButtonStyle {
+    static var tactile: DSTactileButtonStyle { DSTactileButtonStyle() }
 }
 
 #Preview("All Variants") {

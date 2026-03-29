@@ -358,7 +358,7 @@ struct EntryEditorRow: View {
             }
             .padding(.vertical, 4)
         }
-        .buttonStyle(.plain)
+        .buttonStyle(.tactile)
     }
 }
 
@@ -475,7 +475,7 @@ struct ExercisePickerView: View {
                         .foregroundStyle(theme.textOnPrimary)
                         .clipShape(RoundedRectangle(cornerRadius: DSRadius.md))
                 }
-                .buttonStyle(.plain)
+                .buttonStyle(.tactile)
                 .padding(.horizontal, 16)
                 .padding(.bottom, 8)
                 .background(.ultraThinMaterial)

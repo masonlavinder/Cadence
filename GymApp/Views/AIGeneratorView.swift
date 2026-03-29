@@ -696,7 +696,7 @@ struct MuscleChip: View {
                 .foregroundStyle(isSelected ? theme.textOnPrimary : theme.textPrimary)
                 .clipShape(Capsule())
         }
-        .buttonStyle(.plain)
+        .buttonStyle(.tactile)
     }
 }
 
@@ -722,7 +722,7 @@ struct EquipmentChip: View {
             .foregroundStyle(isSelected ? theme.textOnPrimary : theme.textPrimary)
             .clipShape(Capsule())
         }
-        .buttonStyle(.plain)
+        .buttonStyle(.tactile)
     }
 }
 

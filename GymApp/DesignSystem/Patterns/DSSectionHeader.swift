@@ -24,7 +24,7 @@ struct DSSectionHeader: View {
                         .font(DSFont.captionBold.font)
                         .foregroundStyle(theme.primary)
                 }
-                .buttonStyle(.plain)
+                .buttonStyle(.tactile)
             }
         }
         .padding(.bottom, DSSpacing.xs)

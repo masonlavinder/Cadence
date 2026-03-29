@@ -238,7 +238,7 @@ struct MuscleToggleChip: View {
                 .foregroundStyle(isSelected ? theme.textOnPrimary : theme.textPrimary)
                 .clipShape(Capsule())
         }
-        .buttonStyle(.plain)
+        .buttonStyle(.tactile)
     }
 }
 

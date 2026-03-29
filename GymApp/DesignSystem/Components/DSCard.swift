@@ -11,9 +11,12 @@ struct DSCard<Content: View>: View {
     var body: some View {
         content()
             .padding(padding)
-            .background(theme.surface)
+            .background(.regularMaterial)
             .clipShape(RoundedRectangle(cornerRadius: DSRadius.md))
-            .dsShadowSm()
+            .overlay(
+                RoundedRectangle(cornerRadius: DSRadius.md)
+                    .stroke(Color.white.opacity(0.15), lineWidth: 1)
+            )
     }
 }
 
@@ -26,8 +29,12 @@ struct DSGlassCard<Content: View>: View {
     var body: some View {
         content()
             .padding(padding)
-            .background(.ultraThinMaterial)
+            .background(.regularMaterial)
             .clipShape(RoundedRectangle(cornerRadius: DSRadius.md))
+            .overlay(
+                RoundedRectangle(cornerRadius: DSRadius.md)
+                    .stroke(Color.white.opacity(0.15), lineWidth: 1)
+            )
     }
 }
 
@@ -35,14 +42,16 @@ struct DSGlassCard<Content: View>: View {
 
 struct DSCardModifier: ViewModifier {
     var padding: CGFloat = DSSpacing.lg
-    @Environment(\.dsTheme) private var theme
 
     func body(content: Content) -> some View {
         content
             .padding(padding)
-            .background(theme.surface)
+            .background(.regularMaterial)
             .clipShape(RoundedRectangle(cornerRadius: DSRadius.md))
-            .dsShadowSm()
+            .overlay(
+                RoundedRectangle(cornerRadius: DSRadius.md)
+                    .stroke(Color.white.opacity(0.15), lineWidth: 1)
+            )
     }
 }
 
@@ -54,8 +63,12 @@ struct DSGlassCardModifier: ViewModifier {
     func body(content: Content) -> some View {
         content
             .padding(padding)
-            .background(.ultraThinMaterial)
+            .background(.regularMaterial)
             .clipShape(RoundedRectangle(cornerRadius: DSRadius.md))
+            .overlay(
+                RoundedRectangle(cornerRadius: DSRadius.md)
+                    .stroke(Color.white.opacity(0.15), lineWidth: 1)
+            )
     }
 }
 

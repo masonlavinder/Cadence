@@ -12,7 +12,6 @@ struct WorkoutDetailView: View {
     @State private var showingEditor = false
     @State private var showingActiveWorkout = false
     @State private var showingDeleteConfirmation = false
-    @State private var showingActions = false
     @Environment(\.dismiss) private var dismiss
 
     var sortedEntries: [WorkoutEntry] {
@@ -133,23 +132,23 @@ struct WorkoutDetailView: View {
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {
             ToolbarItem(placement: .primaryAction) {
-                Button {
-                    showingActions = true
+                Menu {
+                    Button {
+                        showingEditor = true
+                    } label: {
+                        Label("Edit", systemImage: "pencil")
+                    }
+
+                    Button(role: .destructive) {
+                        showingDeleteConfirmation = true
+                    } label: {
+                        Label("Delete Workout", systemImage: "trash")
+                    }
                 } label: {
-                    Image(systemName: "ellipsis.circle")
+                    Image(systemName: "ellipsis")
+                        .font(.body)
                 }
             }
-        }
-        .confirmationDialog("", isPresented: $showingActions, titleVisibility: .hidden) {
-            Button("Edit") {
-                showingEditor = true
-            }
-
-            Button("Delete Workout", role: .destructive) {
-                showingDeleteConfirmation = true
-            }
-
-            Button("Cancel", role: .cancel) {}
         }
         .confirmationDialog(
             "Delete \"\(workout.name)\"?",

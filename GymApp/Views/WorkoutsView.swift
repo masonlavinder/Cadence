@@ -174,7 +174,7 @@ struct WorkoutCardView: View {
                             .foregroundStyle(workout.isFavorite ? theme.warning : theme.textTertiary)
                             .font(.caption)
                     }
-                    .buttonStyle(.plain)
+                    .buttonStyle(.tactile)
 
                     Text(workout.name)
                         .font(.headline)
@@ -221,7 +221,7 @@ struct WorkoutCardView: View {
                         .foregroundStyle(theme.textPrimary)
                         .clipShape(RoundedRectangle(cornerRadius: 8))
                 }
-                .buttonStyle(.plain)
+                .buttonStyle(.tactile)
 
                 Button {
                     onStart()
@@ -235,7 +235,7 @@ struct WorkoutCardView: View {
                         .foregroundStyle(theme.textOnPrimary)
                         .clipShape(RoundedRectangle(cornerRadius: 8))
                 }
-                .buttonStyle(.plain)
+                .buttonStyle(.tactile)
             }
         }
         .padding(.vertical, 6)
@@ -264,10 +264,14 @@ struct FilterChip: View {
             .fontWeight(isSelected ? .semibold : .regular)
             .padding(.horizontal, 12)
             .padding(.vertical, 8)
-            .background(isSelected ? theme.primary : theme.secondary.opacity(0.15))
+            .background(isSelected ? AnyShapeStyle(theme.primary) : AnyShapeStyle(.regularMaterial))
             .foregroundStyle(isSelected ? theme.textOnPrimary : theme.textPrimary)
             .clipShape(Capsule())
+            .overlay(
+                Capsule()
+                    .stroke(isSelected ? Color.clear : Color.white.opacity(0.15), lineWidth: 1)
+            )
         }
-        .buttonStyle(.plain)
+        .buttonStyle(.tactile)
     }
 }
