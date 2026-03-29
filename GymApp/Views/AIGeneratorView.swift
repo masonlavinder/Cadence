@@ -86,7 +86,7 @@ struct AIGeneratorView: View {
 
                     VStack(alignment: .leading) {
                         Text("Duration: \(formattedDuration)")
-                        Slider(value: $duration, in: 5...240, step: 5)
+                        Slider(value: $duration, in: 5...120, step: 5)
                             .tint(theme.primary)
                     }
                 }

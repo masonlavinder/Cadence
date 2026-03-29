@@ -33,6 +33,7 @@ final class WorkoutTimerEngine {
     private(set) var currentEntryIndex: Int = 0
     private(set) var currentSet: Int = 1
     private(set) var secondsRemaining: Int = 0
+    private(set) var phaseTotalSeconds: Int = 0
     private(set) var totalElapsedSeconds: Int = 0
 
     private(set) var deferredQueue: [WorkoutEntry] = []
@@ -173,6 +174,7 @@ final class WorkoutTimerEngine {
                 // More sets remain — rest between sets
                 phase = .restBetweenSets
                 secondsRemaining = entry.restBetweenSetsSeconds
+                phaseTotalSeconds = secondsRemaining
                 if secondsRemaining == 0 {
                     // No rest configured, go straight to next set
                     currentSet += 1
@@ -248,6 +250,7 @@ final class WorkoutTimerEngine {
         case .distance:
             secondsRemaining = entry.estimatedDurationPerSetSeconds
         }
+        phaseTotalSeconds = secondsRemaining
     }
 
     private func advanceToNextEntry() {
@@ -274,6 +277,7 @@ final class WorkoutTimerEngine {
             phase = .restAfterBlock
             state = .running
             secondsRemaining = restAfter
+            phaseTotalSeconds = restAfter
             let nextName = currentEntry?.exerciseName
             onTransition?(.restAfterExercise(seconds: restAfter, nextExerciseName: nextName))
         } else {
@@ -327,6 +331,7 @@ final class WorkoutTimerEngine {
                 phase = .restBetweenSets
                 state = .running
                 secondsRemaining = entry.restBetweenSetsSeconds
+                phaseTotalSeconds = secondsRemaining
             } else {
                 // No rest, stay in waitingForUser for next set
                 // (completedEntryCount was already incremented above, undo for mid-entry)
@@ -367,6 +372,7 @@ final class WorkoutTimerEngine {
 
     func extendRest(bySeconds seconds: Int) {
         secondsRemaining += seconds
+        phaseTotalSeconds += seconds
         onTransition?(.restExtended(additionalSeconds: seconds))
     }
 

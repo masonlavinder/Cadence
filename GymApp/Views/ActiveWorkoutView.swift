@@ -498,23 +498,10 @@ struct ActiveWorkoutView: View {
     // MARK: - Helpers
 
     private var timerProgress: Double {
-        guard let entry = engine.currentEntry else { return 0 }
+        guard engine.phase != .waitingForUser else { return 1.0 }
 
-        let base: Double
-        switch engine.phase {
-        case .exercise:
-            base = Double(entry.estimatedDurationPerSetSeconds)
-        case .restBetweenSets:
-            base = Double(entry.restBetweenSetsSeconds)
-        case .restAfterBlock:
-            base = Double(entry.restAfterExerciseSeconds)
-        case .waitingForUser:
-            return 1.0
-        }
-
+        let total = Double(engine.phaseTotalSeconds)
         let remaining = Double(engine.secondsRemaining)
-        // Use the larger of base or remaining so +30s extends the ring instead of overflowing
-        let total = max(base, remaining)
         guard total > 0 else { return 0 }
         return 1.0 - (remaining / total)
     }
