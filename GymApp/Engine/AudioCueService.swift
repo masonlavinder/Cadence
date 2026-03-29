@@ -95,18 +95,33 @@ final class AudioCueService: NSObject, AVSpeechSynthesizerDelegate {
     /// Filters out novelty/eloquence voices (Bells, Boing, etc.)
     func availableVoices() -> [VoiceInfo] {
         let allVoices = AVSpeechSynthesisVoice.speechVoices()
-            .filter { $0.language == "en-US" && !$0.identifier.contains("eloquence") && !$0.identifier.contains("speech.synthesis") }
+            .filter { $0.language.hasPrefix("en") }
+            .filter { $0.quality.rawValue > 1 }
             .sorted { tierRank($0.identifier) < tierRank($1.identifier) }
 
         let currentID = voice?.identifier
         return allVoices.map { v in
             VoiceInfo(
                 id: v.identifier,
-                name: v.name,
+                name: displayName(for: v),
                 quality: tierLabel(v.identifier),
                 isSelected: v.identifier == currentID
             )
         }
+    }
+
+    private func displayName(for voice: AVSpeechSynthesisVoice) -> String {
+        let id = voice.identifier
+        // Siri voices have identifiers like "com.apple.ttsbundle.siri_Nicky_en-US_compact"
+        if id.contains("siri"), let range = id.range(of: "siri_") {
+            let afterSiri = id[range.upperBound...]
+            if let endRange = afterSiri.range(of: "_") {
+                let name = String(afterSiri[..<endRange.lowerBound])
+                let lang = voice.language
+                return "\(name) (\(lang))"
+            }
+        }
+        return voice.name
     }
 
     private func tierRank(_ identifier: String) -> Int {
@@ -133,7 +148,7 @@ final class AudioCueService: NSObject, AVSpeechSynthesizerDelegate {
     /// Picks the most natural-sounding female en-US voice available on this device.
     /// Falls back through premium → enhanced → default quality tiers.
     private static func resolveVoice() -> AVSpeechSynthesisVoice? {
-        let available = AVSpeechSynthesisVoice.speechVoices().filter { $0.language == "en-US" }
+        let available = AVSpeechSynthesisVoice.speechVoices().filter { $0.language.hasPrefix("en") }
         let availableIDs = Set(available.map(\.identifier))
 
         // Preferred voices, best quality first.
@@ -151,6 +166,10 @@ final class AudioCueService: NSObject, AVSpeechSynthesizerDelegate {
             "com.apple.voice.enhanced.en-US.Ava",
             "com.apple.voice.enhanced.en-US.Zoe",
             "com.apple.voice.enhanced.en-US.Samantha",
+            // Siri
+            "com.apple.ttsbundle.siri_Nicky_en-US_compact",
+            "com.apple.ttsbundle.siri_Martha_en-US_compact",
+            "com.apple.ttsbundle.siri_Aaron_en-US_compact",
             // Compact (still decent, often pre-installed)
             "com.apple.voice.compact.en-US.Samantha",
             "com.apple.voice.super-compact.en-US.Samantha",

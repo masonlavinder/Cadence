@@ -523,8 +523,13 @@ struct ActiveWorkoutView: View {
     private var timerRingColor: Color {
         switch engine.phase {
         case .exercise:
-            // On peach background, ring is dark; last 3 seconds = red
-            return engine.secondsRemaining <= 3 ? theme.destructive : screenForeground
+            // Color change when countdown is close to done
+            let countdownSetting = UserDefaults.standard.object(forKey: "Settings.countdownSeconds") != nil
+                ? UserDefaults.standard.integer(forKey: "Settings.countdownSeconds") : 3
+            if countdownSetting > 0 && engine.secondsRemaining <= countdownSetting {
+                return theme.warning
+            }
+            return screenForeground
         case .restBetweenSets, .restAfterBlock:
             return theme.primary
         case .waitingForUser:

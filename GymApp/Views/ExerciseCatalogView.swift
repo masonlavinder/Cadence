@@ -244,6 +244,19 @@ struct ExerciseDetailView: View {
     @State private var showingResetConfirmation = false
     @State private var showingActions = false
 
+    private var beginnerAlternatives: [Exercise] {
+        guard !exercise.tags.contains("beginner") else { return [] }
+        let pattern = exercise.movementPattern
+        let primaryMuscles = Set(exercise.primaryMuscleGroups)
+        return exerciseStore.all().filter { other in
+            guard other.id != exercise.id,
+                  other.tags.contains("beginner") else { return false }
+            // Match by movement pattern if available, otherwise by shared primary muscles
+            if let pattern, other.movementPattern == pattern { return true }
+            return !primaryMuscles.isDisjoint(with: other.primaryMuscleGroups)
+        }
+    }
+
     var body: some View {
         List {
             Section {
@@ -317,6 +330,35 @@ struct ExerciseDetailView: View {
             if !exercise.instructions.isEmpty {
                 Section("Instructions") {
                     Text(exercise.instructions)
+                }
+            }
+
+            if !beginnerAlternatives.isEmpty {
+                Section("Variations") {
+                    ForEach(beginnerAlternatives) { alt in
+                        NavigationLink {
+                            ExerciseDetailView(exercise: alt)
+                        } label: {
+                            HStack(spacing: 12) {
+                                Image(systemName: "arrow.down.right")
+                                    .font(.caption)
+                                    .foregroundStyle(theme.primary)
+                                    .frame(width: 28, height: 28)
+                                    .background(theme.primary.opacity(0.1))
+                                    .clipShape(Circle())
+
+                                VStack(alignment: .leading, spacing: 2) {
+                                    Text(alt.name)
+                                        .font(.body)
+                                        .fontWeight(.medium)
+                                        .foregroundStyle(theme.textPrimary)
+                                    Text(alt.primaryMuscleGroups.map { $0.rawValue.capitalized }.joined(separator: ", "))
+                                        .font(.caption)
+                                        .foregroundStyle(theme.textSecondary)
+                                }
+                            }
+                        }
+                    }
                 }
             }
         }

@@ -1,0 +1,42 @@
+Privacy Policy for Cadence
+Last updated: March 29, 2026
+
+Cadence is a workout and fitness app designed to keep your data private and under your control. This policy describes what information the app handles and how.
+
+1. Data Storage
+
+All of your workout data, preferences, exercise history, and personal settings (such as your preferred name) are stored locally on your device. We do not operate servers or cloud infrastructure that store your personal information. We do not require you to create an account.
+
+2. Apple Health
+
+Cadence offers optional integration with Apple Health. If you choose to enable this feature, workout data may be shared between Cadence and the Health app on your device. This data remains on your device and is governed by Apple's privacy practices. You can enable or disable this integration at any time in the app's settings.
+
+3. AI Features
+
+All AI-powered features in Cadence, including workout generation and coaching, run entirely on your device. No prompts, inputs, or outputs are sent to third-party AI services.
+
+4. Analytics
+
+We use analytics to understand how the app is used in aggregate, such as which types of workouts are most popular and how frequently features are used. This data is anonymized and is not linked to your identity. We do not track personally identifiable information through analytics. Our analytics provider may collect technical information such as device type and operating system version.
+
+5. Information We Do Not Collect
+
+We do not collect, store, or have access to your name, email address, location, contacts, photos, or any other personal information. We do not sell or share any data with third parties for advertising or marketing purposes.
+
+6. Third-Party Services
+
+The app does not integrate with third-party advertising networks or data brokers. The only external services used are:
+- Apple Health (optional, user-controlled)
+- Anonymous analytics for app improvement
+
+7. Children's Privacy
+
+Cadence does not knowingly collect information from children under the age of 13.
+
+8. Changes to This Policy
+
+We may update this privacy policy from time to time. Any changes will be reflected in the app and on this page with an updated date.
+
+9. Contact
+
+If you have questions about this privacy policy, you can reach us at [your email address].

@@ -9,7 +9,7 @@ struct WorkoutsTabView: View {
     @Environment(\.dsTheme) private var theme
 
     enum Segment: String, CaseIterable {
-        case library = "Library"
+        case library = "Workouts"
         case movements = "Movements"
     }
 
@@ -29,6 +29,7 @@ struct WorkoutsTabView: View {
     @State private var selectedType: ExerciseType? = nil
     @State private var selectedEquipment: Equipment? = nil
     @State private var showMovementFavorites = false
+    @State private var selectedTag: String? = nil
     @State private var showingNewExercise = false
 
     var body: some View {
@@ -46,7 +47,12 @@ struct WorkoutsTabView: View {
             }
         }
         .background(theme.background)
-        .navigationBarHidden(true)
+        .navigationBarTitleDisplayMode(.inline)
+        .toolbar {
+            ToolbarItem(placement: .principal) {
+                EmptyView()
+            }
+        }
         .sheet(isPresented: $showingNewWorkout) {
             NavigationStack {
                 WorkoutEditorView(workout: nil)
@@ -89,19 +95,6 @@ struct WorkoutsTabView: View {
                 Spacer()
 
                 HStack(spacing: 16) {
-                    if segment == .library {
-                        Button {
-                            showingAIGenerator = true
-                        } label: {
-                            Image(systemName: "sparkles")
-                                .font(.title2)
-                                .frame(width: 44, height: 44)
-                                .foregroundStyle(theme.primary)
-                                .contentShape(Rectangle())
-                        }
-                        .buttonStyle(.plain)
-                    }
-
                     Button {
                         if segment == .library {
                             showingNewWorkout = true
@@ -116,6 +109,19 @@ struct WorkoutsTabView: View {
                             .contentShape(Rectangle())
                     }
                     .buttonStyle(.plain)
+
+                    if segment == .library {
+                        Button {
+                            showingAIGenerator = true
+                        } label: {
+                            Image(systemName: "sparkles")
+                                .font(.title2)
+                                .frame(width: 44, height: 44)
+                                .foregroundStyle(theme.primary)
+                                .contentShape(Rectangle())
+                        }
+                        .buttonStyle(.plain)
+                    }
                 }
             }
 
@@ -309,6 +315,10 @@ struct WorkoutsTabView: View {
             exercises = exercises.filter { $0.equipment == equipment }
         }
 
+        if let tag = selectedTag {
+            exercises = exercises.filter { $0.tags.contains(tag) }
+        }
+
         if !movementsSearch.isEmpty {
             let query = movementsSearch.lowercased()
             exercises = exercises.filter {
@@ -373,6 +383,20 @@ struct WorkoutsTabView: View {
                         .background(selectedEquipment != nil ? theme.primary : theme.secondary.opacity(0.15))
                         .foregroundStyle(selectedEquipment != nil ? theme.textOnPrimary : theme.textPrimary)
                         .clipShape(Capsule())
+                    }
+
+                    FilterChip(
+                        title: "Beginner",
+                        isSelected: selectedTag == "beginner"
+                    ) {
+                        selectedTag = selectedTag == "beginner" ? nil : "beginner"
+                    }
+
+                    FilterChip(
+                        title: "Fundamental",
+                        isSelected: selectedTag == "fundamental"
+                    ) {
+                        selectedTag = selectedTag == "fundamental" ? nil : "fundamental"
                     }
                 }
             }

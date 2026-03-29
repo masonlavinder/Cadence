@@ -7,8 +7,11 @@ struct SettingsView: View {
     @Environment(\.dsTheme) private var theme
 
     private let audio = AudioCueService.shared
+    @State private var userName: String = UserDefaults.standard.string(forKey: "Settings.userName") ?? ""
     @State private var voiceEnabled: Bool = AudioCueService.shared.voiceEnabled
     @State private var vibrateOnSpeech: Bool = AudioCueService.shared.vibrateOnSpeech
+    @State private var countdownSeconds: Int = UserDefaults.standard.object(forKey: "Settings.countdownSeconds") != nil
+        ? UserDefaults.standard.integer(forKey: "Settings.countdownSeconds") : 3
     @State private var healthKitEnabled: Bool = {
         if UserDefaults.standard.object(forKey: "Settings.healthKitEnabled") == nil { return true }
         return UserDefaults.standard.bool(forKey: "Settings.healthKitEnabled")
@@ -40,6 +43,29 @@ struct SettingsView: View {
 
                 // Settings rows
                 VStack(spacing: DSSpacing.sm) {
+                    // Name
+                    HStack(spacing: DSSpacing.md) {
+                        Image(systemName: "person")
+                            .font(.body)
+                            .foregroundStyle(theme.primary)
+                            .frame(width: 28, height: 28)
+
+                        TextField("Your name", text: $userName)
+                            .font(.body)
+                            .foregroundStyle(theme.textPrimary)
+                            .onChange(of: userName) { _, newValue in
+                                let trimmed = String(newValue.prefix(100))
+                                if trimmed != newValue {
+                                    userName = trimmed
+                                }
+                                UserDefaults.standard.set(trimmed, forKey: "Settings.userName")
+                            }
+                    }
+                    .padding(.vertical, DSSpacing.md)
+                    .padding(.horizontal, DSSpacing.lg)
+                    .background(DSColors.surface)
+                    .clipShape(RoundedRectangle(cornerRadius: DSRadius.md))
+
                     // Voice coaching toggle
                     settingsToggle(
                         icon: "speaker.wave.2",
@@ -72,6 +98,35 @@ struct SettingsView: View {
                         audio.vibrateOnSpeech = newValue
                     }
 
+                    // Countdown setting
+                    HStack(spacing: DSSpacing.md) {
+                        Image(systemName: "timer")
+                            .font(.body)
+                            .foregroundStyle(theme.primary)
+                            .frame(width: 28, height: 28)
+
+                        Text("Countdown")
+                            .font(.body)
+                            .foregroundStyle(theme.textPrimary)
+
+                        Spacer()
+
+                        Picker("", selection: $countdownSeconds) {
+                            Text("Off").tag(0)
+                            Text("3s").tag(3)
+                            Text("10s").tag(10)
+                        }
+                        .pickerStyle(.segmented)
+                        .frame(width: 150)
+                        .onChange(of: countdownSeconds) { _, newValue in
+                            UserDefaults.standard.set(newValue, forKey: "Settings.countdownSeconds")
+                        }
+                    }
+                    .padding(.vertical, DSSpacing.md)
+                    .padding(.horizontal, DSSpacing.lg)
+                    .background(DSColors.surface)
+                    .clipShape(RoundedRectangle(cornerRadius: DSRadius.md))
+
                     // Apple Health toggle
                     settingsToggle(
                         icon: "heart.fill",
@@ -82,6 +137,22 @@ struct SettingsView: View {
                     }
                 }
                 .padding(.horizontal, 16)
+
+                // About
+                VStack(alignment: .leading, spacing: DSSpacing.md) {
+                    Text("About")
+                        .font(DSFont.captionBold.font)
+                        .foregroundStyle(theme.textSecondary)
+                        .textCase(.uppercase)
+
+                    Text("Your workout data, preferences, and history are stored locally on your device. AI features run entirely on-device with no third-party services. Apple Health integration is optional and stays local. We may use anonymized analytics to improve the app, but your personal information is not shared or sold.")
+                        .font(.subheadline)
+                        .foregroundStyle(theme.textSecondary)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+                .padding(.horizontal, 16)
+                .padding(.top, DSSpacing.xxl)
+                .padding(.bottom, DSSpacing.xxxl)
             }
         }
         .background(DSColors.background)
@@ -148,8 +219,6 @@ struct VoiceSettingsView: View {
 
     @State private var voices: [AudioCueService.VoiceInfo] = []
     @State private var selectedID: String?
-    @State private var previewingID: String?
-    @State private var previewSynthesizer: AVSpeechSynthesizer?
 
     private let audio = AudioCueService.shared
 
@@ -182,6 +251,13 @@ struct VoiceSettingsView: View {
                     .padding(.bottom, DSSpacing.lg)
                 }
 
+                // Recommendation
+                Text("We recommend Ava (Premium) for the most natural coaching experience. You can download it in Settings → Accessibility → Spoken Content → Voices → English.")
+                    .font(.caption)
+                    .foregroundStyle(theme.textSecondary)
+                    .padding(.horizontal, 16)
+                    .padding(.bottom, DSSpacing.md)
+
                 // Voice list
                 if voices.isEmpty {
                     Text("No voices available")
@@ -199,13 +275,20 @@ struct VoiceSettingsView: View {
                     variant: .secondary,
                     size: .md
                 ) {
-                    if let url = URL(string: "App-prefs:ACCESSIBILITY&path=SPEECH_TITLE") {
+                    if let url = URL(string: "App-prefs:ACCESSIBILITY") {
                         UIApplication.shared.open(url)
                     }
                 }
                 .padding(.horizontal, 16)
                 .padding(.top, DSSpacing.lg)
-                .padding(.bottom, DSSpacing.xxxl)
+
+                Text("You can also find voices in Settings → Accessibility → Live Speech → Voices")
+                    .font(.caption)
+                    .foregroundStyle(theme.textTertiary)
+                    .multilineTextAlignment(.center)
+                    .padding(.horizontal, 16)
+                    .padding(.top, DSSpacing.sm)
+                    .padding(.bottom, DSSpacing.xxxl)
             }
         }
         .background(DSColors.background)
@@ -251,7 +334,7 @@ struct VoiceSettingsView: View {
     @ViewBuilder
     private func qualityBadge(for tier: String) -> some View {
         switch tier {
-        case "Premium", "Enhanced":
+        case "Premium":
             badgePill("Best", color: theme.success)
         case "Siri":
             badgePill("Good", color: theme.primary)
@@ -284,18 +367,6 @@ struct VoiceSettingsView: View {
 
                 Spacer()
 
-                // Preview button
-                Button {
-                    preview(voiceInfo)
-                } label: {
-                    Image(systemName: previewingID == voiceInfo.id ? "speaker.wave.2.fill" : "play.circle")
-                        .font(.title3)
-                        .foregroundStyle(theme.primary)
-                        .frame(width: 44, height: 44)
-                        .contentShape(Rectangle())
-                }
-                .buttonStyle(.plain)
-
                 // Selected checkmark
                 if voiceInfo.isSelected {
                     Image(systemName: "checkmark.circle.fill")
@@ -321,25 +392,4 @@ struct VoiceSettingsView: View {
         selectedID = voices.first(where: { $0.isSelected })?.id
     }
 
-    private func preview(_ voiceInfo: AudioCueService.VoiceInfo) {
-        // Stop any existing preview
-        previewSynthesizer?.stopSpeaking(at: .immediate)
-
-        previewingID = voiceInfo.id
-
-        let synth = AVSpeechSynthesizer()
-        previewSynthesizer = synth
-        let utterance = AVSpeechUtterance(string: "Let's get going. Next up, bench press.")
-        utterance.voice = AVSpeechSynthesisVoice(identifier: voiceInfo.id)
-        utterance.rate = AVSpeechUtteranceDefaultSpeechRate
-        utterance.pitchMultiplier = 1.0
-        utterance.volume = 0.9
-        synth.speak(utterance)
-
-        DispatchQueue.main.asyncAfter(deadline: .now() + 3) {
-            if previewingID == voiceInfo.id {
-                previewingID = nil
-            }
-        }
-    }
 }

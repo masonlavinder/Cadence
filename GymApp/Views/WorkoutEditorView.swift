@@ -39,7 +39,7 @@ struct WorkoutEditorView: View {
         }
     }
 
-    init(workout: Workout?) {
+    init(workout: Workout? = nil) {
         self.workout = workout
 
         // Initialize state from existing workout or defaults

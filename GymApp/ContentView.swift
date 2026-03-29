@@ -8,37 +8,12 @@
 import SwiftUI
 import SwiftData
 
-/// Root navigation view with tab-based navigation
+/// Root navigation view
 struct ContentView: View {
-    @State private var selectedTab: AppTab = .home
-
     var body: some View {
-        TabView(selection: $selectedTab) {
-            NavigationStack {
-                HomeView(selectedTab: $selectedTab)
-            }
-            .tabItem {
-                Label("Home", systemImage: "house.fill")
-            }
-            .tag(AppTab.home)
-
-            NavigationStack {
-                WorkoutsTabView()
-            }
-            .tabItem {
-                Label("Workouts", systemImage: "dumbbell.fill")
-            }
-            .tag(AppTab.workouts)
-
-            NavigationStack {
-                InsightsView()
-            }
-            .tabItem {
-                Label("Insights", systemImage: "chart.bar.fill")
-            }
-            .tag(AppTab.insights)
+        NavigationStack {
+            HomeView()
         }
-        .toolbarBackground(.ultraThinMaterial, for: .tabBar)
     }
 }
 

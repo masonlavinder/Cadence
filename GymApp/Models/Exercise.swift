@@ -46,6 +46,9 @@ final class Exercise: BaseEntity {
     var videoURL: String?
     var cueText: String?  // Custom TTS instructions
     
+    // MARK: - Tags
+    var tags: [String]
+
     // MARK: - Provenance
     var isCustom: Bool  // user-created vs. from built-in library
     var externalReferenceId: String?
@@ -70,6 +73,7 @@ final class Exercise: BaseEntity {
         defaultTransitionStyle: TransitionStyle? = nil,
         defaultFlowStyle: FlowStyle? = nil,
         isFavorite: Bool = false,
+        tags: [String] = [],
         isCustom: Bool = true,
         thumbnailURL: String? = nil,
         videoURL: String? = nil,
@@ -98,6 +102,7 @@ final class Exercise: BaseEntity {
         self.defaultTransitionStyle = defaultTransitionStyle
         self.defaultFlowStyle = defaultFlowStyle
         self.isFavorite = isFavorite
+        self.tags = tags
         self.timesUsed = 0
         self.isCustom = isCustom
         self.thumbnailURL = thumbnailURL

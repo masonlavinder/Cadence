@@ -10,11 +10,13 @@ struct HomeView: View {
     @Environment(ExerciseStore.self) private var exerciseStore
     @Environment(\.dsTheme) private var theme
 
-    @Binding var selectedTab: AppTab
     @State private var workoutToStart: Workout?
     @State private var showingCoach = false
-    @State private var discoveries: [Exercise] = []
+    @State private var showingNewWorkout = false
+    @State private var showingAIGenerator = false
     @State private var suggestions: [WorkoutSuggestion] = []
+    @State private var showingNamePrompt = false
+    @State private var nameInput = ""
 
     var body: some View {
         // Track store revisions so the view refreshes after workout completion
@@ -22,39 +24,28 @@ struct HomeView: View {
         let _ = sessionStore.revision
 
         ScrollView {
-            VStack(alignment: .leading, spacing: DSSpacing.xl) {
+            VStack(alignment: .leading, spacing: DSSpacing.xxl) {
                 // Header
                 header
 
-                // Quick Stats
-                statsRow
+                // Create Workout Buttons
+                createButtons
 
-                // Favorites (horizontal scroll)
-                let favs = workoutStore.favorites()
-                if !favs.isEmpty {
-                    favoritesSection(favs)
-                }
-
-                // Recent Workouts
-                recentSection
-
-                // Mini Weekly Chart
-                let weeklyCounts = sessionStore.weeklySessionCounts(weeks: 4)
-                if weeklyCounts.contains(where: { $0.count > 0 }) {
-                    miniWeeklyChart(weeklyCounts)
-                }
+                // Your Workouts (favorites + recents combined)
+                yourWorkoutsSection
 
                 // Get Better At
                 if !suggestions.isEmpty {
                     getBetterAtSection
                 }
 
-                // Discover Movements
-                if !discoveries.isEmpty {
-                    discoverSection(discoveries)
-                }
+                // Fundamentals
+                fundamentalsSection
+
+                // Quick Stats
+                statsRow
             }
-            .padding(.bottom, DSSpacing.xxxl)
+            .padding(.bottom, 64)
         }
         .background(theme.background)
         .navigationBarHidden(true)
@@ -64,11 +55,32 @@ struct HomeView: View {
             }
         }
         .onAppear {
-            if discoveries.isEmpty {
-                discoveries = Array(exerciseStore.leastUsed(limit: 20).shuffled().prefix(5))
-            }
             if suggestions.isEmpty {
                 suggestions = buildSuggestions()
+            }
+            if !UserDefaults.standard.bool(forKey: "Settings.namePromptShown") {
+                showingNamePrompt = true
+            }
+        }
+        .alert("What should we call you?", isPresented: $showingNamePrompt) {
+            TextField("Your name", text: $nameInput)
+            Button("Let's go") {
+                let trimmed = String(nameInput.prefix(100))
+                UserDefaults.standard.set(trimmed, forKey: "Settings.userName")
+                UserDefaults.standard.set(true, forKey: "Settings.namePromptShown")
+            }
+            Button("Skip", role: .cancel) {
+                UserDefaults.standard.set(true, forKey: "Settings.namePromptShown")
+            }
+        }
+        .sheet(isPresented: $showingNewWorkout) {
+            NavigationStack {
+                WorkoutEditorView()
+            }
+        }
+        .sheet(isPresented: $showingAIGenerator) {
+            NavigationStack {
+                AIGeneratorView()
             }
         }
         .sheet(isPresented: $showingCoach) {
@@ -89,66 +101,139 @@ struct HomeView: View {
                         .clipShape(Circle())
                         .shadow(color: .black.opacity(0.3), radius: 8, y: 4)
                 }
-                .padding(.trailing, DSSpacing.lg)
-                .padding(.bottom, DSSpacing.lg)
+                .padding(.trailing, DSSpacing.xl)
+                .padding(.bottom, DSSpacing.xl)
             }
         }
     }
 
     // MARK: - Header
 
+    private var userName: String {
+        UserDefaults.standard.string(forKey: "Settings.userName") ?? ""
+    }
+
+    private var userInitial: String {
+        let name = userName
+        if let first = name.first {
+            return String(first).uppercased()
+        }
+        return "?"
+    }
+
     private var header: some View {
         HStack {
-            VStack(alignment: .leading, spacing: 2) {
-                Text("cadence")
-                    .font(.system(size: 11, weight: .medium, design: .rounded))
-                    .tracking(4)
-                    .textCase(.uppercase)
-                    .foregroundStyle(theme.primary)
-                Text("Home")
-                    .font(.largeTitle)
-                    .fontWeight(.bold)
-                    .foregroundStyle(theme.textPrimary)
-            }
+            Text("cadence")
+                .font(.system(size: 28, weight: .medium, design: .default))
+                .tracking(3)
+                .textCase(.uppercase)
+                .foregroundStyle(theme.primary)
 
             Spacer()
 
             NavigationLink {
                 SettingsView()
             } label: {
-                Image(systemName: "gearshape")
-                    .font(.title2)
-                    .frame(width: 44, height: 44)
-                    .foregroundStyle(theme.primary)
-                    .contentShape(Rectangle())
+                Text(userInitial)
+                    .font(.system(size: 14, weight: .semibold))
+                    .foregroundStyle(theme.textOnPrimary)
+                    .frame(width: 36, height: 36)
+                    .background(theme.primary)
+                    .clipShape(Circle())
             }
             .buttonStyle(.plain)
         }
-        .padding(.horizontal, DSSpacing.lg)
-        .padding(.top, DSSpacing.sm)
+        .padding(.horizontal, DSSpacing.xl)
+        .padding(.top, DSSpacing.lg)
+    }
+
+    // MARK: - Create Buttons
+
+    private var createButtons: some View {
+        HStack(spacing: DSSpacing.md) {
+            Button {
+                showingNewWorkout = true
+            } label: {
+                HStack(spacing: DSSpacing.sm) {
+                    Image(systemName: "plus.circle.fill")
+                        .font(.title3)
+                    Text("Build Workout")
+                        .font(.subheadline)
+                        .fontWeight(.semibold)
+                }
+                .frame(maxWidth: .infinity)
+                .padding(.vertical, DSSpacing.md)
+                .background(theme.primary)
+                .foregroundStyle(theme.textOnPrimary)
+                .clipShape(RoundedRectangle(cornerRadius: DSRadius.md))
+            }
+            .buttonStyle(.plain)
+
+            Button {
+                showingAIGenerator = true
+            } label: {
+                HStack(spacing: DSSpacing.sm) {
+                    Image(systemName: "sparkles")
+                        .font(.title3)
+                    Text("AI Generate")
+                        .font(.subheadline)
+                        .fontWeight(.semibold)
+                }
+                .frame(maxWidth: .infinity)
+                .padding(.vertical, DSSpacing.md)
+                .background(theme.surfaceElevated)
+                .foregroundStyle(theme.primary)
+                .clipShape(RoundedRectangle(cornerRadius: DSRadius.md))
+                .overlay(
+                    RoundedRectangle(cornerRadius: DSRadius.md)
+                        .stroke(theme.primary.opacity(0.3), lineWidth: 1)
+                )
+            }
+            .buttonStyle(.plain)
+        }
+        .padding(.horizontal, DSSpacing.xl)
     }
 
     // MARK: - Stats Row
 
     private var statsRow: some View {
-        HStack(spacing: DSSpacing.md) {
-            statCard(
-                title: "Streak",
-                value: "\(sessionStore.currentStreak())d",
-                icon: "bolt.fill"
-            )
-            statCard(
-                title: "Workouts",
-                value: "\(sessionStore.totalCompletedCount())",
-                icon: "flame.fill"
-            )
-            statCard(
-                title: "Time",
-                value: sessionStore.totalWorkoutTimeFormatted(),
-                icon: "clock.fill"
-            )
+        VStack(spacing: DSSpacing.md) {
+            HStack {
+                DSSectionHeader(title: "Quick Stats")
+                Spacer()
+                NavigationLink {
+                    InsightsView()
+                } label: {
+                    HStack(spacing: 4) {
+                        Text("More Insights")
+                        Image(systemName: "chevron.right")
+                            .font(.caption2)
+                    }
+                    .font(DSFont.captionBold.font)
+                    .foregroundStyle(theme.primary)
+                }
+                .buttonStyle(.plain)
+            }
+
+            HStack(spacing: DSSpacing.lg) {
+                statCard(
+                    title: "Streak",
+                    value: "\(sessionStore.currentStreak())d",
+                    icon: "bolt.fill"
+                )
+                statCard(
+                    title: "Workouts",
+                    value: "\(sessionStore.totalCompletedCount())",
+                    icon: "flame.fill"
+                )
+                statCard(
+                    title: "Time",
+                    value: sessionStore.totalWorkoutTimeFormatted(),
+                    icon: "clock.fill"
+                )
+            }
         }
-        .padding(.horizontal, DSSpacing.lg)
+        .padding(.horizontal, DSSpacing.xl)
     }
 
     private func statCard(title: String, value: String, icon: String) -> some View {
@@ -169,145 +254,190 @@ struct HomeView: View {
         .dsGlassCard(padding: DSSpacing.md)
     }
 
-    // MARK: - Favorites
+    // MARK: - Your Workouts (favorites + recents combined)
 
-    private func favoritesSection(_ favorites: [Workout]) -> some View {
-        VStack(alignment: .leading, spacing: DSSpacing.sm) {
-            DSSectionHeader(title: "Favorites", actionTitle: "See All") {
-                selectedTab = .workouts
-            }
-            .padding(.horizontal, DSSpacing.lg)
-
-            ScrollView(.horizontal, showsIndicators: false) {
-                HStack(spacing: DSSpacing.md) {
-                    ForEach(favorites) { workout in
-                        workoutCard(workout)
-                    }
-                }
-                .padding(.horizontal, DSSpacing.lg)
-            }
-        }
-    }
-
-    private func workoutCard(_ workout: Workout) -> some View {
-        VStack(alignment: .leading, spacing: DSSpacing.sm) {
-            Text(workout.name)
-                .font(DSFont.bodyBold.font)
-                .foregroundStyle(theme.textPrimary)
-                .lineLimit(1)
-
-            HStack(spacing: DSSpacing.xs) {
-                let catColor = DSColors.categoryColor(workout.category)
-                Text(workout.category.rawValue.capitalized)
-                    .font(.caption2)
-                    .fontWeight(.semibold)
-                    .padding(.horizontal, 6)
-                    .padding(.vertical, 2)
-                    .background(catColor.opacity(0.2))
-                    .foregroundStyle(catColor)
-                    .clipShape(Capsule())
-
-                Text("\(workout.estimatedDurationMinutes) min")
-                    .font(.caption2)
-                    .foregroundStyle(theme.textSecondary)
-            }
-
-            Button {
-                workoutToStart = workout
-            } label: {
-                Label("Start", systemImage: "play.fill")
-                    .font(.caption)
-                    .fontWeight(.semibold)
-                    .frame(maxWidth: .infinity)
-                    .padding(.vertical, 6)
-                    .background(theme.primary)
-                    .foregroundStyle(theme.textOnPrimary)
-                    .clipShape(RoundedRectangle(cornerRadius: 6))
-            }
-            .buttonStyle(.plain)
-        }
-        .frame(width: 160)
-        .dsCard(padding: DSSpacing.md)
-    }
-
-    // MARK: - Recent Workouts
-
-    private var recentSection: some View {
+    private var yourWorkoutsSection: some View {
+        let favs = workoutStore.favorites()
         let recent = workoutStore.recentlyCompleted(limit: 5)
+        // Combine: favorites first, then recents not already in favorites
+        let favIDs = Set(favs.map(\.id))
+        let combined = favs + recent.filter { !favIDs.contains($0.id) }
 
-        return VStack(alignment: .leading, spacing: DSSpacing.sm) {
-            DSSectionHeader(title: "Recent", actionTitle: "See All") {
-                selectedTab = .workouts
+        return VStack(alignment: .leading, spacing: DSSpacing.md) {
+            HStack {
+                DSSectionHeader(title: "Your Workouts")
+                Spacer()
+                NavigationLink {
+                    WorkoutsTabView()
+                } label: {
+                    HStack(spacing: 4) {
+                        Text("All Workouts")
+                        Image(systemName: "chevron.right")
+                            .font(.caption2)
+                    }
+                    .font(DSFont.captionBold.font)
+                    .foregroundStyle(theme.primary)
+                }
+                .buttonStyle(.plain)
             }
-            .padding(.horizontal, DSSpacing.lg)
+            .padding(.horizontal, DSSpacing.xl)
 
-            if recent.isEmpty {
+            if combined.isEmpty {
                 DSEmptyState(
                     icon: "dumbbell",
                     title: "No Workouts Yet",
                     message: "Start a workout and it will show up here"
                 )
+                .frame(maxWidth: .infinity)
             } else {
                 ScrollView(.horizontal, showsIndicators: false) {
-                    HStack(spacing: DSSpacing.md) {
-                        ForEach(recent) { workout in
+                    HStack(spacing: DSSpacing.lg) {
+                        ForEach(combined) { workout in
                             workoutCard(workout)
                         }
                     }
-                    .padding(.horizontal, DSSpacing.lg)
+                    .padding(.horizontal, DSSpacing.xl)
                 }
             }
         }
     }
 
-    // MARK: - Mini Weekly Chart
+    private func workoutCard(_ workout: Workout) -> some View {
+        NavigationLink {
+            WorkoutDetailView(workout: workout)
+        } label: {
+            VStack(alignment: .leading, spacing: DSSpacing.sm) {
+                Text(workout.name)
+                    .font(DSFont.bodyBold.font)
+                    .foregroundStyle(theme.textPrimary)
+                    .lineLimit(1)
 
-    private func miniWeeklyChart(_ weeklyCounts: [(weekStart: Date, count: Int)]) -> some View {
-        VStack(alignment: .leading, spacing: DSSpacing.md) {
-            DSSectionHeader(title: "This Month", actionTitle: "Details") {
-                selectedTab = .insights
-            }
+                HStack(spacing: DSSpacing.xs) {
+                    let catColor = DSColors.categoryColor(workout.category)
+                    Text(workout.category.rawValue.capitalized)
+                        .font(.caption2)
+                        .fontWeight(.semibold)
+                        .padding(.horizontal, 6)
+                        .padding(.vertical, 2)
+                        .background(catColor.opacity(0.2))
+                        .foregroundStyle(catColor)
+                        .clipShape(Capsule())
 
-            Chart(weeklyCounts, id: \.weekStart) { item in
-                BarMark(
-                    x: .value("Week", item.weekStart, unit: .weekOfYear),
-                    y: .value("Sessions", item.count)
-                )
-                .foregroundStyle(
-                    LinearGradient(
-                        colors: [theme.primary, theme.primary.opacity(0.6)],
-                        startPoint: .top,
-                        endPoint: .bottom
-                    )
-                )
-                .cornerRadius(DSRadius.sm / 2)
-            }
-            .chartXAxis {
-                AxisMarks(values: .stride(by: .weekOfYear)) { _ in
-                    AxisValueLabel(format: .dateTime.month(.abbreviated).day())
+                    Text("\(workout.estimatedDurationMinutes) min")
+                        .font(.caption2)
                         .foregroundStyle(theme.textSecondary)
                 }
-            }
-            .chartYAxis {
-                AxisMarks { _ in
-                    AxisGridLine()
-                        .foregroundStyle(theme.border)
-                    AxisValueLabel()
-                        .foregroundStyle(theme.textSecondary)
+
+                Button {
+                    workoutToStart = workout
+                } label: {
+                    Label("Start", systemImage: "play.fill")
+                        .font(.caption)
+                        .fontWeight(.semibold)
+                        .frame(maxWidth: .infinity)
+                        .padding(.vertical, 6)
+                        .background(theme.primary)
+                        .foregroundStyle(theme.textOnPrimary)
+                        .clipShape(RoundedRectangle(cornerRadius: 6))
                 }
+                .buttonStyle(.plain)
             }
-            .frame(height: 120)
+            .frame(width: 200)
+            .dsCard(padding: DSSpacing.md)
         }
-        .dsGlassCard(padding: DSSpacing.lg)
-        .padding(.horizontal, DSSpacing.lg)
+        .buttonStyle(.plain)
+    }
+
+    // MARK: - Insights Section
+
+    private var insightsSection: some View {
+        let weeklyCounts = sessionStore.weeklySessionCounts(weeks: 8)
+        let breakdown = sessionStore.categoryBreakdown()
+        let hasWeekly = weeklyCounts.contains(where: { $0.count > 0 })
+
+        return VStack(spacing: DSSpacing.xl) {
+            if hasWeekly {
+                VStack(alignment: .leading, spacing: DSSpacing.md) {
+                    Text("Weekly Activity")
+                        .font(DSFont.headline.font)
+                        .foregroundStyle(theme.textPrimary)
+
+                    Chart(weeklyCounts, id: \.weekStart) { item in
+                        BarMark(
+                            x: .value("Week", item.weekStart, unit: .weekOfYear),
+                            y: .value("Sessions", item.count)
+                        )
+                        .foregroundStyle(
+                            LinearGradient(
+                                colors: [theme.primary, theme.primary.opacity(0.6)],
+                                startPoint: .top,
+                                endPoint: .bottom
+                            )
+                        )
+                        .cornerRadius(DSRadius.sm / 2)
+                    }
+                    .chartXAxis {
+                        AxisMarks(values: .stride(by: .weekOfYear)) { _ in
+                            AxisValueLabel(format: .dateTime.month(.abbreviated).day())
+                                .foregroundStyle(theme.textSecondary)
+                        }
+                    }
+                    .chartYAxis {
+                        AxisMarks { _ in
+                            AxisGridLine()
+                                .foregroundStyle(theme.border)
+                            AxisValueLabel()
+                                .foregroundStyle(theme.textSecondary)
+                        }
+                    }
+                    .frame(height: 180)
+                }
+                .dsGlassCard(padding: DSSpacing.lg)
+                .padding(.horizontal, DSSpacing.lg)
+            }
+
+            if !breakdown.isEmpty {
+                VStack(alignment: .leading, spacing: DSSpacing.md) {
+                    Text("Categories")
+                        .font(DSFont.headline.font)
+                        .foregroundStyle(theme.textPrimary)
+
+                    Chart(breakdown, id: \.category) { item in
+                        BarMark(
+                            x: .value("Count", item.count),
+                            y: .value("Category", item.category.rawValue.capitalized)
+                        )
+                        .foregroundStyle(DSColors.categoryColor(item.category))
+                        .cornerRadius(DSRadius.sm / 2)
+                    }
+                    .chartXAxis {
+                        AxisMarks { _ in
+                            AxisGridLine()
+                                .foregroundStyle(theme.border)
+                            AxisValueLabel()
+                                .foregroundStyle(theme.textSecondary)
+                        }
+                    }
+                    .chartYAxis {
+                        AxisMarks { _ in
+                            AxisValueLabel()
+                                .foregroundStyle(theme.textPrimary)
+                        }
+                    }
+                    .frame(height: CGFloat(breakdown.count) * 40 + 20)
+                }
+                .dsGlassCard(padding: DSSpacing.lg)
+                .padding(.horizontal, DSSpacing.lg)
+            }
+        }
     }
 
     // MARK: - Get Better At
 
     private var getBetterAtSection: some View {
-        VStack(alignment: .leading, spacing: DSSpacing.sm) {
+        VStack(alignment: .leading, spacing: DSSpacing.md) {
             DSSectionHeader(title: "Get Better At")
-                .padding(.horizontal, DSSpacing.lg)
+                .padding(.horizontal, DSSpacing.xl)
 
             ScrollView(.horizontal, showsIndicators: false) {
                 HStack(spacing: DSSpacing.sm) {
@@ -333,7 +463,66 @@ struct HomeView: View {
                         .buttonStyle(.plain)
                     }
                 }
-                .padding(.horizontal, DSSpacing.lg)
+                .padding(.horizontal, DSSpacing.xl)
+            }
+        }
+    }
+
+    // MARK: - Fundamentals
+
+    private var fundamentalPatterns: [(pattern: MovementPattern, title: String, subtitle: String, icon: String)] {
+        [
+            (.push, "Push", "Chest, shoulders, triceps", "arrow.up.right"),
+            (.pull, "Pull", "Back, biceps, rear delts", "arrow.down.left"),
+            (.squat, "Squat", "Quads, glutes, core", "arrow.down"),
+            (.hinge, "Hinge", "Hamstrings, glutes, back", "arrow.up.and.down"),
+            (.carry, "Carry & Core", "Core, grip, stability", "figure.walk"),
+        ]
+    }
+
+    private func fundamentalExercises(for pattern: MovementPattern) -> [Exercise] {
+        exerciseStore.all().filter { $0.tags.contains("fundamental") && $0.movementPattern == pattern }
+    }
+
+    private var fundamentalsSection: some View {
+        VStack(alignment: .leading, spacing: DSSpacing.md) {
+            DSSectionHeader(title: "Fundamentals")
+                .padding(.horizontal, DSSpacing.xl)
+
+            ScrollView(.horizontal, showsIndicators: false) {
+                HStack(spacing: DSSpacing.lg) {
+                    ForEach(fundamentalPatterns, id: \.pattern) { item in
+                        let exercises = fundamentalExercises(for: item.pattern)
+                        NavigationLink {
+                            ExerciseSuggestionList(
+                                title: item.title,
+                                exercises: exercises
+                            )
+                        } label: {
+                            VStack(alignment: .leading, spacing: DSSpacing.sm) {
+                                Image(systemName: item.icon)
+                                    .font(.title3)
+                                    .foregroundStyle(theme.primary)
+
+                                Text(item.title)
+                                    .font(DSFont.bodyBold.font)
+                                    .foregroundStyle(theme.textPrimary)
+
+                                Text(item.subtitle)
+                                    .font(.caption2)
+                                    .foregroundStyle(theme.textSecondary)
+
+                                Text("\(exercises.count) exercises")
+                                    .font(.caption2)
+                                    .foregroundStyle(theme.textTertiary)
+                            }
+                            .frame(width: 160, height: 120, alignment: .leading)
+                            .dsCard(padding: DSSpacing.md)
+                        }
+                        .buttonStyle(.plain)
+                    }
+                }
+                .padding(.horizontal, DSSpacing.xl)
             }
         }
     }
@@ -411,8 +600,8 @@ struct HomeView: View {
 
         let sortedMuscles = interestingMuscles.sorted { (muscleUsage[$0] ?? 0) < (muscleUsage[$1] ?? 0) }
 
-        for muscle in sortedMuscles.prefix(4) {
-            if results.count >= 6 { break }
+        for muscle in sortedMuscles.prefix(5) {
+            if results.count >= 9 { break }
             results.append(WorkoutSuggestion(
                 title: muscle.rawValue.capitalized,
                 icon: "figure.strengthtraining.traditional",
@@ -421,7 +610,7 @@ struct HomeView: View {
             ))
         }
 
-        return Array(results.shuffled().prefix(5))
+        return Array(results.shuffled().prefix(7))
     }
 
     private func iconForCategory(_ category: WorkoutCategory) -> String {
@@ -437,62 +626,6 @@ struct HomeView: View {
         }
     }
 
-    // MARK: - Discover Movements
-
-    private func discoverSection(_ exercises: [Exercise]) -> some View {
-        VStack(alignment: .leading, spacing: DSSpacing.sm) {
-            DSSectionHeader(title: "Try Something New")
-                .padding(.horizontal, DSSpacing.lg)
-
-            ScrollView(.horizontal, showsIndicators: false) {
-                HStack(spacing: DSSpacing.sm) {
-                    ForEach(exercises) { exercise in
-                        NavigationLink {
-                            ExerciseDetailView(exercise: exercise)
-                        } label: {
-                            HStack(spacing: DSSpacing.sm) {
-                                Image(systemName: iconForType(exercise.exerciseType))
-                                    .font(.caption)
-                                    .foregroundStyle(DSColors.exerciseTypeColor(exercise.exerciseType))
-
-                                Text(exercise.name)
-                                    .font(DSFont.caption.font)
-                                    .foregroundStyle(theme.textPrimary)
-                                    .lineLimit(1)
-                            }
-                            .padding(.horizontal, DSSpacing.md)
-                            .padding(.vertical, DSSpacing.sm)
-                            .background(theme.surfaceElevated)
-                            .clipShape(Capsule())
-                        }
-                        .buttonStyle(.plain)
-                    }
-                }
-                .padding(.horizontal, DSSpacing.lg)
-            }
-        }
-    }
-
-    private func iconForType(_ type: ExerciseType) -> String {
-        switch type {
-        case .strength: return "figure.strengthtraining.traditional"
-        case .cardio: return "figure.run"
-        case .flexibility: return "figure.yoga"
-        case .balance: return "figure.ballet"
-        case .plyometric: return "figure.jumprope"
-        case .isometric: return "figure.core.training"
-        case .pose: return "figure.mind.and.body"
-        case .interval: return "timer"
-        case .distance: return "ruler"
-        case .breathwork: return "lungs"
-        }
-    }
-}
-
-// MARK: - AppTab
-
-enum AppTab: Hashable {
-    case home, workouts, insights
 }
 
 // MARK: - WorkoutSuggestion
